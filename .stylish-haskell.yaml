@@ -1,0 +1,5 @@
+# See `stylish-haskell --defaults`
+steps:
+  - imports:
+      pad_module_names: false
+      separate_lists: false

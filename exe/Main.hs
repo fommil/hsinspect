@@ -1,35 +1,52 @@
 module Main where
 
--- FIXME stylish-haskell rules that don't drive me crazy
 import           Control.Monad
 import           Control.Monad.IO.Class
-import           DynFlags
-import           GHC
-import           GHC.Paths              (libdir)
-import           Maybes
+import           DynFlags (DynFlags(..), GhcLink(..), HscTarget(..),
+                           unsafeGlobalDynFlags)
+import qualified GHC as GHC
+import           GHC.Paths (libdir)
+import           Outputable (Outputable, showPpr)
+import           RdrName (GlobalRdrElt, globalRdrEnvElts)
+import           TcRnTypes (tcg_rdr_env)
 
--- TODO http://www.stephendiehl.com/posts/ghc_01.html
-
+-- TODO input file
+-- TODO user provided default language extensions
+-- TODO infer default language extensions
 main :: IO ()
-main = runGhc (Just libdir) $ do
-  dflags <- getSessionDynFlags
-  void $ setSessionDynFlags $ dflags {
+main = GHC.runGhc (Just libdir) $ do
+  dflags <- GHC.getSessionDynFlags
+  void $ GHC.setSessionDynFlags $ dflags {
       hscTarget = HscInterpreted
     , ghcLink   = LinkInMemory
     }
-  t <- guessTarget "exe/Main.hs" Nothing
-  setTargets [t]
-  _ <- load LoadAllTargets
 
-  graph <- getModuleGraph
-  mss <- filterM (isLoaded . ms_mod_name) (mgModSummaries graph)
-  let m = ms_mod ms
-      ms = head mss
+  -- TODO don't repeat the filename
+  t <- GHC.guessTarget "exe/Main.hs" Nothing
+  GHC.setTargets [t]
+  _ <- GHC.load GHC.LoadAllTargets
 
-  liftIO . putStrLn $ (show . length $ mss) ++ " modules loaded"
+  modSum <- GHC.getModSummary $ GHC.mkModuleName "Main"
 
-  mi <- getModuleInfo m
-  let mod_info = fromJust mi
-  let names = GHC.modInfoTopLevelScope mod_info `orElse` []
+  -- TODO is parsing/typechecking redoing work?
+  pmod <- GHC.parseModule modSum
+  tmod <- GHC.typecheckModule pmod
 
-  liftIO $ putStrLn $ "seen " <> (show $ length names) <> " Names"
+  let Just (_, imports, _, _) = GHC.tm_renamed_source tmod
+  liftIO . putStrLn . showGhc $ imports
+
+  -- TODO (local name, fully qualified name, (optional) normalised type sig)
+  -- TODO s-expression output
+  -- TODO find a good sexp2json tool for non-Emacs users
+  liftIO . putStrLn . showGhc $ modInfoTopLevelScope' tmod
+
+showGhc :: (Outputable a) => a -> String
+showGhc = showPpr unsafeGlobalDynFlags
+
+-- like modInfoTopLevelScope but with original qualification information
+modInfoTopLevelScope' :: GHC.TypecheckedModule -> [GlobalRdrElt]
+modInfoTopLevelScope' tmod =
+  -- WORKAROUND minf_rdr_env is not visible from ModuleInfo
+  let (tc_gbl_env, _) = GHC.tm_internals_ tmod
+      minf_rdr_env = tcg_rdr_env tc_gbl_env
+  in globalRdrEnvElts minf_rdr_env
