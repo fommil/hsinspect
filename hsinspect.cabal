@@ -26,6 +26,8 @@ common deps
                     -Werror=missing-home-modules
   default-language: Haskell2010
 
+-- TODO can the executable name have the ghc version attached?
+--      or are there user specific build-tool-depends?
 executable hsinspect
   import:             deps
   hs-source-dirs:     exe
