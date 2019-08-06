@@ -33,19 +33,3 @@ executable hsinspect
   hs-source-dirs:     exe
   main-is:            Main.hs
   ghc-options:        -threaded
-
-library
-  import:             deps
-  hs-source-dirs:     library
-  exposed-modules:    HsInspect.Imports
-
-test-suite            tests
-  import:             deps
-  hs-source-dirs:     tests
-  type:               exitcode-stdio-1.0
-  main-is:            Driver.hs
-  build-depends:    , tasty            ^>= 1.1.0.4
-                    , tasty-hspec      ^>= 1.1.5
-                    , tasty-quickcheck ^>= 0.10
-  build-tool-depends: tasty-discover:tasty-discover ^>= 4.2.1
-  ghc-options:        -threaded

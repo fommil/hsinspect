@@ -6,4 +6,5 @@ image: library/haskell:8.4.4
 build_job:
   stage: build
   script:
-    - cabal v2-build
+    - cabal v2-update
+    - ./tests.sh

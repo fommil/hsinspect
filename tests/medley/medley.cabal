@@ -1,0 +1,15 @@
+cabal-version:       2.2
+name:                medley
+version:             0.0.1
+
+common deps
+  build-depends:    base
+  ghc-options:      -Wall
+                    -Werror=missing-home-modules
+  default-language: Haskell2010
+
+library
+  import:             deps
+  hs-source-dirs:     library
+  build-depends:      contravariant ^>= 1.5.2
+  exposed-modules:    Medley.Wibble
