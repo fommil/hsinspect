@@ -21,7 +21,8 @@ for t in * ; do
     echo "testing $t"
     cd "$SCRIPT_DIR/tests/$t"
     cabal v2-build -w $GHC_VERSION -O0 all || true
-    find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$EXEC $HSINSPECT imports {} > {}.$GHC_VERSION.imports"
+    # passes some parameters for testing...
+    find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$EXEC $HSINSPECT imports {} -XLambdaCase -XNoLambdaCase > {}.$GHC_VERSION.imports.sexp"
 done
 
 cd "$SCRIPT_DIR"

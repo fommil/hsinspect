@@ -1,3 +1,4 @@
+[Off LambdaCase, On LambdaCase]
 (
 ("Contravariant" "C.Contravariant" "Data.Functor.Contravariant.Contravariant")
 ("Op" "C.Op" "Data.Functor.Contravariant.Op")

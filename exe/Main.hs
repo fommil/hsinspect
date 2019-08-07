@@ -1,11 +1,14 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Main where
 
 import           Control.Monad
 import           Control.Monad.IO.Class
-import           DynFlags (DynFlags(..), GhcLink(..), HscTarget(..),
-                           unsafeGlobalDynFlags)
+import           Data.List (isPrefixOf, stripPrefix)
+import           DynFlags (DynFlags(..), FlagSpec(..), GhcLink(..),
+                           HscTarget(..), unsafeGlobalDynFlags, xFlags,
+                           xopt_set, xopt_unset)
 import qualified GHC as GHC
 import           GHC.Paths (libdir)
 import           HscTypes (Target(..), TargetId(..), mgModSummaries)
@@ -15,26 +18,44 @@ import           RdrName (GlobalRdrElt(..), ImpDeclSpec(..), ImportSpec(..),
 import           System.Environment (getArgs)
 import           TcRnTypes (tcg_rdr_env)
 
--- TODO user provided default language extensions
+-- TODO tests for modules that depend on other modules in the same package
 -- TODO infer default language extensions
+-- TODO infer language version
+--
+-- Possible backends:
+--
+-- https://github.com/mpickering/hie-bios
+-- http://hackage.haskell.org/package/cabal-helper
 main :: IO ()
 main = GHC.runGhc (Just libdir) $ do
   args <- liftIO $ getArgs
   case args of
-    "imports" : file : _ -> do
-      gres <- imports file
+    "imports" : file : user -> do
+      let exts = filter ("-X" `isPrefixOf`) user
+          _json = any ("-json" ==) user
+      gres <- imports exts file
+      let descs = describe =<< gres
       liftIO $ putStrLn "("
-      forM_ (describe =<< gres) (liftIO . putStrLn . toSexp)
+      forM_ descs (liftIO . putStrLn . toSexp)
       liftIO $ putStrLn ")"
     _ ->
       liftIO $ error "invalid parameters"
 
-imports :: GHC.GhcMonad m => FilePath -> m [GlobalRdrElt]
-imports file = do
+imports :: GHC.GhcMonad m => [String] -> FilePath -> m [GlobalRdrElt]
+imports exts file = do
   dflags <- GHC.getSessionDynFlags
-  void $ GHC.setSessionDynFlags $ dflags {
-      hscTarget = HscInterpreted
-    , ghcLink   = LinkInMemory
+  let
+    -- TODO is there a ghc utility to set lang extensions?
+    getX = flip lookup $ (\f -> (flagSpecName f, flagSpecFlag f)) <$> xFlags
+    update f (stripPrefix "-XNo" -> Just (getX -> Just ux)) = xopt_unset f ux
+    update f (stripPrefix "-X" -> Just (getX -> Just ux)) = xopt_set f ux
+    update f _ = f
+    dflags' = foldl update dflags exts
+
+  liftIO $ putStrLn $ showGhc $ extensions dflags'
+  void $ GHC.setSessionDynFlags $ dflags' {
+      hscTarget = HscNothing
+    , ghcLink   = NoLink
     }
 
   let target = Target (TargetFile file Nothing) False Nothing
@@ -87,9 +108,8 @@ data Qualified = Qualified
   deriving (Eq, Show)
 
 -- TODO alist or :keyword instead of unlabelled list
--- TODO an Sexp package to avoid manual string manipulation
--- TODO find a sexp2json tool for non-Emacs users or
---      consider using the Json package since it is in ghc
+-- TODO Sexp module
+-- TODO Json module from ghc
 toSexp :: Qualified -> String
 toSexp (Qualified ln lqn fqn) =
   concat $ ["("] ++ m2s ln ++ m2s lqn ++ [show fqn] ++ [")"]
