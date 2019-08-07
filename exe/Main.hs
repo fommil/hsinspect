@@ -30,6 +30,8 @@ main :: IO ()
 main = GHC.runGhc (Just libdir) $ do
   args <- liftIO $ getArgs
   case args of
+    -- TODO --version
+    -- TODO --help
     "imports" : file : user -> do
       let exts = filter ("-X" `isPrefixOf`) user
           _json = any ("-json" ==) user
@@ -63,6 +65,9 @@ imports exts file = do
   _ <- GHC.load GHC.LoadAllTargets
 
   graph <- GHC.getModuleGraph
+
+  liftIO $ putStrLn $ showGhc $ mgModSummaries graph
+
   importsInScope . GHC.ms_mod_name . head . mgModSummaries $ graph
 
 showGhc :: (Outputable a) => a -> String

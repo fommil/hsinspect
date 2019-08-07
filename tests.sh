@@ -22,6 +22,7 @@ for t in * ; do
     cd "$SCRIPT_DIR/tests/$t"
     cabal v2-build -w $GHC_VERSION -O0 all || true
     # passes some parameters for testing...
+    $EXEC sh -c 'cat $GHC_ENVIRONMENT' > env.$GHC_VERSION
     find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$EXEC $HSINSPECT imports {} -XLambdaCase -XNoLambdaCase > {}.$GHC_VERSION.imports.sexp"
 done
 

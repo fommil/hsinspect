@@ -12,3 +12,4 @@ library
   hs-source-dirs:     library
   build-depends:      contravariant ^>= 1.5.2
   exposed-modules:    Medley.Wibble
+                    , Medley.Wobble
