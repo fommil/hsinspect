@@ -65,9 +65,6 @@ imports exts file = do
   _ <- GHC.load GHC.LoadAllTargets
 
   graph <- GHC.getModuleGraph
-
-  liftIO $ putStrLn $ showGhc $ mgModSummaries graph
-
   importsInScope . GHC.ms_mod_name . head . mgModSummaries $ graph
 
 showGhc :: (Outputable a) => a -> String
@@ -83,6 +80,8 @@ importsInScope :: GHC.GhcMonad m => GHC.ModuleName -> m [GlobalRdrElt]
 importsInScope m = do
   modSum <- GHC.getModSummary m
   -- TODO don't parse beyond the import section
+  -- 1) HeaderInfo.getImports
+  -- 2) SourceBuffer
   pmod <- GHC.parseModule modSum
   tmod <- GHC.typecheckModule pmod
   let (tc_gbl_env, _) = GHC.tm_internals_ tmod
