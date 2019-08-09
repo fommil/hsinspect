@@ -6,15 +6,24 @@ module Main where
 import           Control.Monad
 import           Control.Monad.IO.Class
 import           Data.List (isPrefixOf, stripPrefix)
+import           Data.Time.Clock (UTCTime)
 import           DynFlags (DynFlags(..), FlagSpec(..), GhcLink(..),
                            HscTarget(..), unsafeGlobalDynFlags, xFlags,
                            xopt_set, xopt_unset)
+import           FastString
 import qualified GHC as GHC
+import           GHC.LanguageExtensions (Extension)
 import           GHC.Paths (libdir)
+import           HeaderInfo (getOptions)
 import           HscTypes (Target(..), TargetId(..), mgModSummaries)
+import           Lexer
 import           Outputable (Outputable, showPpr)
-import           RdrName (GlobalRdrElt(..), ImpDeclSpec(..), ImportSpec(..),
-                          globalRdrEnvElts)
+import           Parser (parseHeader)
+import           RdrName (GlobalRdrElt(..), GlobalRdrEnv, ImpDeclSpec(..),
+                          ImportSpec(..), globalRdrEnvElts)
+import           SrcLoc
+import           StringBuffer
+import           System.Directory (getModificationTime)
 import           System.Environment (getArgs)
 import           TcRnTypes (tcg_rdr_env)
 
@@ -44,49 +53,72 @@ main = GHC.runGhc (Just libdir) $ do
       liftIO $ error "invalid parameters"
 
 imports :: GHC.GhcMonad m => [String] -> FilePath -> m [GlobalRdrElt]
-imports exts file = do
+imports user_exts file = do
   dflags <- GHC.getSessionDynFlags
   let
-    -- TODO is there a ghc utility to set lang extensions?
-    getX = flip lookup $ (\f -> (flagSpecName f, flagSpecFlag f)) <$> xFlags
-    update f (stripPrefix "-XNo" -> Just (getX -> Just ux)) = xopt_unset f ux
-    update f (stripPrefix "-X" -> Just (getX -> Just ux)) = xopt_set f ux
-    update f _ = f
-    dflags' = foldl update dflags exts
+    dflags' = (foldl update dflags user_exts) {
+        hscTarget = HscNothing
+      , ghcLink   = NoLink
+      }
+  void . GHC.setSessionDynFlags $ dflags'
 
-  liftIO $ putStrLn $ showGhc $ extensions dflags'
-  void $ GHC.setSessionDynFlags $ dflags' {
-      hscTarget = HscNothing
-    , ghcLink   = NoLink
-    }
-
-  let target = Target (TargetFile file Nothing) False Nothing
+  hack <- workaroundGhc file
+  let target = Target (TargetFile file Nothing) False hack
   GHC.setTargets [target]
   _ <- GHC.load GHC.LoadAllTargets
 
   graph <- GHC.getModuleGraph
-  importsInScope . GHC.ms_mod_name . head . mgModSummaries $ graph
+  rdr_env <- minf_rdr_env' . GHC.ms_mod_name . head . mgModSummaries $ graph
+  pure $ globalRdrEnvElts rdr_env
+
+-- TODO is there a ghc utility to update DynFlags from [String]?
+--             (_, dflags') = runCmdLine (runEwM setFlags) dflags
+getX :: String -> Maybe Extension
+getX = flip lookup $ (\f -> (flagSpecName f, flagSpecFlag f)) <$> xFlags
+
+update :: DynFlags -> String -> DynFlags
+update f (stripPrefix "-XNo" -> Just (getX -> Just ux)) = xopt_unset f ux
+update f (stripPrefix "-X" -> Just (getX -> Just ux)) = xopt_set f ux
+update f _ = f
+
+println :: (Outputable a, GHC.GhcMonad m) => a -> m ()
+println = liftIO . putStrLn . showGhc
 
 showGhc :: (Outputable a) => a -> String
 showGhc = showPpr unsafeGlobalDynFlags
 
--- like modInfoTopLevelScope but with qualification information
---
--- WORKAROUND minf_rdr_env is not visible from ModuleInfo so we
--- need to do another parse / typecheck to get the tm_internals_
---
--- TODO send a PR to upstream to add the necessary feature
-importsInScope :: GHC.GhcMonad m => GHC.ModuleName -> m [GlobalRdrElt]
-importsInScope m = do
+-- FIXME support preprocessing of source files (needed for our tests)
+-- hsinspect: buffer needs preprocesing; interactive check disabled
+
+-- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
+workaroundGhc :: GHC.GhcMonad m => FilePath -> m (Maybe (StringBuffer, UTCTime))
+workaroundGhc file = do
+  dflags <- GHC.getSessionDynFlags
+  full <- liftIO $ hGetStringBuffer file
+  let
+    file_exts = unLoc <$> getOptions dflags full file
+    dflags' = foldl update dflags file_exts
+    loc  = mkRealSrcLoc (mkFastString file) 1 1
+  trimmed <- case unP parseHeader (mkPState dflags' full loc) of
+    POk _ (L _ hsmod) ->
+      -- TODO if the module is called Main then append `main = return ()`
+      pure . stringToStringBuffer $ showPpr dflags' hsmod
+    _ -> error "parseHeader failed"
+
+  -- TODO don't update the global dflags, instead render them into `trimmed'
+  void . GHC.setSessionDynFlags $ dflags'
+
+  ts <- liftIO $ getModificationTime file
+  pure $ Just (trimmed, ts)
+
+-- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
+minf_rdr_env' :: GHC.GhcMonad m => GHC.ModuleName -> m GlobalRdrEnv
+minf_rdr_env' m = do
   modSum <- GHC.getModSummary m
-  -- TODO don't parse beyond the import section
-  -- 1) HeaderInfo.getImports
-  -- 2) SourceBuffer
   pmod <- GHC.parseModule modSum
   tmod <- GHC.typecheckModule pmod
   let (tc_gbl_env, _) = GHC.tm_internals_ tmod
-      minf_rdr_env = tcg_rdr_env tc_gbl_env
-  pure $ globalRdrEnvElts minf_rdr_env
+  pure $ tcg_rdr_env tc_gbl_env
 
 describe :: GlobalRdrElt -> [Qualified]
 describe GRE{gre_name, gre_imp} = describe' <$> gre_imp

@@ -11,21 +11,27 @@ else
     GHC_VERSION=ghc-8.4.4
 fi
 
-# use -O0 and --enable-tests to WORKAROUND https://github.com/haskell/cabal/issues/6182
-cabal v2-build -w $GHC_VERSION -O0
-EXEC="cabal v2-exec -v0 -w $GHC_VERSION -O0 --enable-tests --"
-HSINSPECT=$($EXEC which hsinspect)
+cabal v2-build -w $GHC_VERSION
+HSINSPECT=$(cabal v2-exec -w $GHC_VERSION -- which hsinspect)
 
 cd tests
+
+# TODO test / executable phase that uses modules in the same folder
 
 for t in * ; do
     echo "testing $t"
     cd "$SCRIPT_DIR/tests/$t"
-    # this `-O0 --enable-tests' is intentional, it simulates users
-    cabal v2-build -w $GHC_VERSION -O0 --enable-tests all || true
-    # passes some parameters for testing...
-    # $EXEC sh -c 'cat $GHC_ENVIRONMENT' > env.$GHC_VERSION
-    find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$EXEC $HSINSPECT imports {} -XLambdaCase -XNoLambdaCase > {}.$GHC_VERSION.imports.sexp"
+
+    # See the README for reasons why we have to manually create an env file from
+    # a good build.
+    cabal v2-build -w $GHC_VERSION -O0 --enable-tests --constraint="medley -uncompilable" :all:libraries
+    cabal v2-exec -w $GHC_VERSION -O0 --enable-tests --constraint="medley -uncompilable" -- sh -c 'cat $GHC_ENVIRONMENT > .hsinspect.env'
+
+    cabal v2-build -w $GHC_VERSION -O0 --enable-tests all > /dev/null 2>&1 || true
+    export GHC_ENVIRONMENT="$PWD/.hsinspect.env"
+    # LambdaCase is to test user-provided lang extensions
+    find library -name "*.hs" -print0 | xargs -P 0 -0 -L1 -I {} sh -c "$HSINSPECT imports {} -XLambdaCase > {}.$GHC_VERSION.imports.sexp"
+    unset GHC_ENVIRONMENT
 done
 
 cd "$SCRIPT_DIR"

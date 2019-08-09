@@ -1,4 +1,4 @@
-[Off LambdaCase, On LambdaCase]
 (
-("String" "Prelude.String")
+("Divisible" "Data.Functor.Contravariant.Divisible.Divisible")
+("conquered" "Data.Functor.Contravariant.Divisible.conquered")
 )

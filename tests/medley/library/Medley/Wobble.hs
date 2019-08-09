@@ -1,8 +1,12 @@
+{-# LANGUAGE PackageImports #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Medley.Wobble where
 
-import           Prelude (String)
+-- can't use "base" + Prelude due to https://gitlab.haskell.org/ghc/ghc/issues/17045
+import           "contravariant" Data.Functor.Contravariant.Divisible (Divisible,
+                                                                       conquered)
 
-wobbly :: String
-wobbly = "hello"
+wobble :: Divisible m => m ()
+wobble = conquered
 

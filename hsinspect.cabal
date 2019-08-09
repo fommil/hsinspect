@@ -19,9 +19,12 @@ common deps
   -- Controversial: we don't bound any dependencies because we only
   -- depend on installed things that come with ghc.
   build-depends:    base
+                  , directory
                   , ghc
+                  , ghc-boot
                   -- TODO remove ghc-paths, it's on hackage
                   , ghc-paths
+                  , time
   ghc-options:      -Wall
                     -Werror=missing-home-modules
   default-language: Haskell2010

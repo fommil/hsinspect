@@ -2,10 +2,17 @@ cabal-version:       2.2
 name:                medley
 version:             0.0.1
 
+flag uncompilable
+  description: Enables invalid code (user input)
+  manual: True
+  default: True
+
 common deps
   build-depends:    base
   ghc-options:      -Werror=missing-home-modules
   default-language: Haskell2010
+  if flag(uncompilable)
+    cpp-options:      -DUNCOMPILABLE
 
 library
   import:             deps
