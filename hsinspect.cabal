@@ -1,38 +1,38 @@
-cabal-version:       2.2
-name:                hsinspect
-version:             0.0.1
-synopsis:            Inspect Haskell source files.
-license:             GPL-3.0-or-later
-license-file:        LICENSE
-author:              Tseen She
-maintainer:          Tseen She
-copyright:           2019 Tseen She
-bug-reports:         https://gitlab.com/tseenshe/hsinspect/merge_requests
-tested-with:         GHC ^>= 8.4.4 || ^>= 8.6.5
-category:            Building
-description:
-  Inspect @.hs@ files using the ghc api.
+cabal-version: 2.2
+name:          hsinspect
+version:       0.0.1
+synopsis:      Inspect Haskell source files.
+license:       GPL-3.0-or-later
+license-file:  LICENSE
+author:        Tseen She
+maintainer:    Tseen She
+copyright:     2019 Tseen She
+bug-reports:   https://gitlab.com/tseenshe/hsinspect/merge_requests
+tested-with:   GHC ^>=8.4.4 || ^>=8.6.5
+category:      Building
+description:   Inspect @.hs@ files using the ghc api.
 
 -- https://www.haskell.org/cabal/users-guide/cabal-projectindex.html
 
 common deps
   -- Controversial: we don't bound any dependencies because we only
   -- depend on installed things that come with ghc.
-  build-depends:    base
-                  , directory
-                  , ghc
-                  , ghc-boot
-                  -- TODO remove ghc-paths, it's on hackage
-                  , ghc-paths
-                  , time
-  ghc-options:      -Wall
-                    -Werror=missing-home-modules
+  build-depends:
+    , base
+    , directory
+    , ghc
+    , ghc-boot
+    , ghc-paths
+    , time
+
+  -- TODO remove ghc-paths, it's on hackage
+  ghc-options:      -Wall -Werror=missing-home-modules
   default-language: Haskell2010
 
 -- TODO can the executable name have the ghc version attached?
 --      or are there user specific build-tool-depends?
 executable hsinspect
-  import:             deps
-  hs-source-dirs:     exe
-  main-is:            Main.hs
-  ghc-options:        -threaded
+  import:         deps
+  hs-source-dirs: exe
+  main-is:        Main.hs
+  ghc-options:    -threaded
