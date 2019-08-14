@@ -30,7 +30,7 @@ for t in * ; do
     cabal v2-build -w $GHC_VERSION -O0 --enable-tests all > /dev/null 2>&1 || true
     export GHC_ENVIRONMENT="$PWD/.hsinspect.env"
     # LambdaCase is to test user-provided lang extensions
-    find library -name "*.hs" -print0 | xargs -P 0 -0 -L1 -I {} sh -c "$HSINSPECT imports {} -XLambdaCase > {}.$GHC_VERSION.imports.sexp"
+    find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$HSINSPECT imports {} -XLambdaCase > {}.$GHC_VERSION.imports.sexp"
     unset GHC_ENVIRONMENT
 done
 

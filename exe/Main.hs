@@ -5,8 +5,8 @@ module Main where
 
 import           Control.Monad
 import           Control.Monad.IO.Class
-import           Data.List (isPrefixOf, stripPrefix)
-import           Data.Time.Clock (UTCTime)
+import           Data.List (intercalate, isPrefixOf, isSuffixOf, stripPrefix)
+import           DriverPipeline (preprocess)
 import           DynFlags (DynFlags(..), FlagSpec(..), GhcLink(..),
                            HscTarget(..), unsafeGlobalDynFlags, xFlags,
                            xopt_set, xopt_unset)
@@ -23,11 +23,10 @@ import           RdrName (GlobalRdrElt(..), GlobalRdrEnv, ImpDeclSpec(..),
                           ImportSpec(..), globalRdrEnvElts)
 import           SrcLoc
 import           StringBuffer
-import           System.Directory (getModificationTime)
+import           System.Directory (getModificationTime, removeFile)
 import           System.Environment (getArgs)
 import           TcRnTypes (tcg_rdr_env)
 
--- TODO tests for modules that depend on other modules in the same package
 -- TODO infer default language extensions
 -- TODO infer language version
 --
@@ -62,10 +61,10 @@ imports user_exts file = do
       }
   void . GHC.setSessionDynFlags $ dflags'
 
-  hack <- workaroundGhc file
-  let target = Target (TargetFile file Nothing) False hack
+  target <- workaroundGhc file
   GHC.setTargets [target]
   _ <- GHC.load GHC.LoadAllTargets
+  -- FIXME load rejects preprocessed files
 
   graph <- GHC.getModuleGraph
   rdr_env <- minf_rdr_env' . GHC.ms_mod_name . head . mgModSummaries $ graph
@@ -87,29 +86,34 @@ println = liftIO . putStrLn . showGhc
 showGhc :: (Outputable a) => a -> String
 showGhc = showPpr unsafeGlobalDynFlags
 
--- FIXME support preprocessing of source files (needed for our tests)
--- hsinspect: buffer needs preprocesing; interactive check disabled
-
 -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
-workaroundGhc :: GHC.GhcMonad m => FilePath -> m (Maybe (StringBuffer, UTCTime))
+workaroundGhc :: GHC.GhcMonad m => FilePath -> m Target
 workaroundGhc file = do
-  dflags <- GHC.getSessionDynFlags
-  full <- liftIO $ hGetStringBuffer file
+  sess <- GHC.getSession
+  (dflags, tmp) <- liftIO $ preprocess sess (file, Nothing)
+  full <- liftIO $ hGetStringBuffer tmp
+  when (".hscpp" `isSuffixOf` tmp) $
+    liftIO . removeFile $ tmp
   let
     file_exts = unLoc <$> getOptions dflags full file
     dflags' = foldl update dflags file_exts
     loc  = mkRealSrcLoc (mkFastString file) 1 1
   trimmed <- case unP parseHeader (mkPState dflags' full loc) of
-    POk _ (L _ hsmod) ->
-      -- TODO if the module is called Main then append `main = return ()`
-      pure . stringToStringBuffer $ showPpr dflags' hsmod
+    POk _ (L _ hsmod) -> do
+      let extra =
+            if (unLoc <$> GHC.hsmodName hsmod) == (Just $ GHC.mkModuleName "Main")
+            then "\nmain = return ()" -- TODO check that return is imported
+            else ""
+          contents =
+            "{-# OPTIONS_GHC " <> (intercalate " " file_exts) <> " #-}\n" <>
+            showPpr dflags' (hsmod { GHC.hsmodExports = Nothing }) <>
+            extra
+      -- liftIO . putStrLn $ contents
+      pure . stringToStringBuffer $ contents
     _ -> error "parseHeader failed"
 
-  -- TODO don't update the global dflags, instead render them into `trimmed'
-  void . GHC.setSessionDynFlags $ dflags'
-
   ts <- liftIO $ getModificationTime file
-  pure $ Just (trimmed, ts)
+  pure $ Target (TargetFile file Nothing) False (Just (trimmed, ts))
 
 -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
 minf_rdr_env' :: GHC.GhcMonad m => GHC.ModuleName -> m GlobalRdrEnv
