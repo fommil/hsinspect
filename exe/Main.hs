@@ -5,7 +5,9 @@ module Main where
 
 import           Control.Monad
 import           Control.Monad.IO.Class
-import           Data.List (intercalate, isPrefixOf, isSuffixOf, stripPrefix)
+import           Data.List (delete, intercalate, isPrefixOf, isSuffixOf,
+                            stripPrefix)
+import           DriverPhases (HscSource(..), Phase(..))
 import           DriverPipeline (preprocess)
 import           DynFlags (DynFlags(..), FlagSpec(..), GhcLink(..),
                            HscTarget(..), unsafeGlobalDynFlags, xFlags,
@@ -64,7 +66,6 @@ imports user_exts file = do
   target <- workaroundGhc file
   GHC.setTargets [target]
   _ <- GHC.load GHC.LoadAllTargets
-  -- FIXME load rejects preprocessed files
 
   graph <- GHC.getModuleGraph
   rdr_env <- minf_rdr_env' . GHC.ms_mod_name . head . mgModSummaries $ graph
@@ -104,8 +105,11 @@ workaroundGhc file = do
             if (unLoc <$> GHC.hsmodName hsmod) == (Just $ GHC.mkModuleName "Main")
             then "\nmain = return ()" -- TODO check that return is imported
             else ""
+          -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/issues/17066
+          --            cannot use CPP in combination with targetContents
+          filtered_exts = delete "-XCPP" file_exts
           contents =
-            "{-# OPTIONS_GHC " <> (intercalate " " file_exts) <> " #-}\n" <>
+            "{-# OPTIONS_GHC " <> (intercalate " " filtered_exts) <> " #-}\n" <>
             showPpr dflags' (hsmod { GHC.hsmodExports = Nothing }) <>
             extra
       -- liftIO . putStrLn $ contents
@@ -113,7 +117,7 @@ workaroundGhc file = do
     _ -> error "parseHeader failed"
 
   ts <- liftIO $ getModificationTime file
-  pure $ Target (TargetFile file Nothing) False (Just (trimmed, ts))
+  pure $ Target (TargetFile file (Just $ Hsc HsSrcFile)) False (Just (trimmed, ts))
 
 -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
 minf_rdr_env' :: GHC.GhcMonad m => GHC.ModuleName -> m GlobalRdrEnv

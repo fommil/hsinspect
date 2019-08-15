@@ -12,7 +12,7 @@ else
 fi
 
 cabal v2-build -w $GHC_VERSION
-HSINSPECT=$(cabal v2-exec -w $GHC_VERSION -- which hsinspect)
+HSINSPECT=$(cabal v2-exec -w $GHC_VERSION -v0 -- which hsinspect)
 
 cd tests
 
