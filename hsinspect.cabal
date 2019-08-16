@@ -12,12 +12,15 @@ tested-with:   GHC ^>=8.4.4 || ^>=8.6.5
 category:      Building
 description:   Inspect @.hs@ files using the ghc api.
 
+source-repository head
+  type:     git
+  location: https://gitlab.com/tseenshe/hsinspect.git
+
 -- https://www.haskell.org/cabal/users-guide/cabal-projectindex.html
 
 common deps
-  -- Controversial: we don't bound any dependencies because we only
   build-depends:
-    , base
+    , base       >=4.11 && <5
     , directory
     , ghc
     , ghc-boot
