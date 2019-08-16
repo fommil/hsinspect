@@ -29,7 +29,7 @@ for t in * ; do
     export GHC_ENVIRONMENT="$PWD/.hsinspect.env"
     # LambdaCase is to test user-provided lang extensions
     find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$HSINSPECT imports {} -- -XLambdaCase > {}.$GHC_VERSION.imports.sexp"
-    find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$HSINSPECT imports {} --json -- -XLambdaCase > {}.$GHC_VERSION.imports.json"
+    find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$HSINSPECT imports {} --json -- -XLambdaCase | python -m json.tool > {}.$GHC_VERSION.imports.json"
     unset GHC_ENVIRONMENT
 done
 
