@@ -16,8 +16,6 @@ HSINSPECT=$(cabal v2-exec -w $GHC_VERSION -v0 -- which hsinspect)
 
 cd tests
 
-# TODO test / executable phase that uses modules in the same folder
-
 for t in * ; do
     echo "testing $t"
     cd "$SCRIPT_DIR/tests/$t"
@@ -30,7 +28,8 @@ for t in * ; do
     cabal v2-build -w $GHC_VERSION -O0 --enable-tests all > /dev/null 2>&1 || true
     export GHC_ENVIRONMENT="$PWD/.hsinspect.env"
     # LambdaCase is to test user-provided lang extensions
-    find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$HSINSPECT imports {} -XLambdaCase > {}.$GHC_VERSION.imports.sexp"
+    find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$HSINSPECT imports {} -- -XLambdaCase > {}.$GHC_VERSION.imports.sexp"
+    find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$HSINSPECT imports {} --json -- -XLambdaCase > {}.$GHC_VERSION.imports.json"
     unset GHC_ENVIRONMENT
 done
 

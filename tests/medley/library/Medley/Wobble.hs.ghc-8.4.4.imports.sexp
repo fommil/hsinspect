@@ -1,4 +1,10 @@
-(
-("Divisible" "Data.Functor.Contravariant.Divisible.Divisible")
-("conquered" "Data.Functor.Contravariant.Divisible.conquered")
+(((local . "Divisible")
+ (qual)
+ (full . "Data.Functor.Contravariant.Divisible.Divisible")
 )
+ ((local . "conquered")
+ (qual)
+ (full . "Data.Functor.Contravariant.Divisible.conquered")
+)
+)
+

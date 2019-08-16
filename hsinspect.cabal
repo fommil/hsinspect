@@ -16,23 +16,31 @@ description:   Inspect @.hs@ files using the ghc api.
 
 common deps
   -- Controversial: we don't bound any dependencies because we only
-  -- depend on installed things that come with ghc.
   build-depends:
     , base
     , directory
     , ghc
     , ghc-boot
-    , ghc-paths
     , time
 
-  -- TODO remove ghc-paths, it's on hackage
   ghc-options:      -Wall -Werror=missing-home-modules
   default-language: Haskell2010
 
--- TODO can the executable name have the ghc version attached?
---      or are there user specific build-tool-depends?
 executable hsinspect
   import:         deps
   hs-source-dirs: exe
+  build-depends:
+    , ghc-paths
+    , hsinspect
+
   main-is:        Main.hs
   ghc-options:    -threaded
+
+library
+  import:          deps
+  hs-source-dirs:  library
+
+  -- cabal-fmt: expand library
+  exposed-modules:
+    HsInspect.Imports
+    HsInspect.Sexp
