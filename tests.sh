@@ -22,10 +22,10 @@ for t in * ; do
 
     # See the README for reasons why we have to manually create an env file from
     # a good build.
-    cabal v2-build -w $GHC_VERSION -O0 --enable-tests --constraint="medley -uncompilable" :all:libraries
-    cabal v2-exec -w $GHC_VERSION -O0 --enable-tests --constraint="medley -uncompilable" -- sh -c 'cat $GHC_ENVIRONMENT > .hsinspect.env'
+    cabal v2-build -w $GHC_VERSION --constraint="medley -uncompilable" :all:libraries
+    cabal v2-exec -w $GHC_VERSION --constraint="medley -uncompilable" -- sh -c 'cat $GHC_ENVIRONMENT > .hsinspect.env'
 
-    cabal v2-build -w $GHC_VERSION -O0 --enable-tests all > /dev/null 2>&1 || true
+    cabal v2-build -w $GHC_VERSION all > /dev/null 2>&1 || true
     export GHC_ENVIRONMENT="$PWD/.hsinspect.env"
     # LambdaCase is to test user-provided lang extensions
     find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$HSINSPECT imports {} -- -XLambdaCase > {}.$GHC_VERSION.imports.sexp"
