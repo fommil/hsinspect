@@ -14,6 +14,10 @@ fi
 cabal v2-build -w $GHC_VERSION
 HSINSPECT=$(cabal v2-exec -w $GHC_VERSION -v0 -- which hsinspect)
 
+# test for exceptions...
+$HSINSPECT --help
+$HSINSPECT --version
+
 cd tests
 
 for t in * ; do
