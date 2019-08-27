@@ -5,6 +5,7 @@ module Main where
 
 import           Control.Monad
 import           Control.Monad.IO.Class
+import           Data.Char (isUpper)
 import           DynFlags (parseDynamicFlagsCmdLine)
 import qualified GHC as GHC
 import           GHC.Paths (libdir)
@@ -36,18 +37,20 @@ help =
 -- http://hackage.haskell.org/package/cabal-helper
 main :: IO ()
 main = do
-  (break ("--" ==) -> (args, _ : flags)) <- getArgs
+  (break ("--" ==) -> (args, flags)) <- getArgs
   when (elem "--help" args) $
     (putStrLn help) >> exitWith ExitSuccess
   when (elem "--version" args) $
     (putStrLn version) >> exitWith ExitSuccess
   GHC.runGhc (Just libdir) $ do
     dflags <- GHC.getSessionDynFlags
-    (dflags', _, _) <- liftIO $ parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> flags)
+    (dflags', (GHC.unLoc <$>) -> ghcargs, _) <- liftIO $ parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> tail flags)
     void $ GHC.setSessionDynFlags dflags'
            { GHC.hscTarget = GHC.HscNothing
            , GHC.ghcLink   = GHC.NoLink
            }
+    let modules = GHC.mkModuleName <$> (filter (isUpper . head) ghcargs)
+    GHC.setTargets $ (\m -> GHC.Target (GHC.TargetModule m) False Nothing) <$> modules
     case args of
       "imports" : file : rest -> do
         quals <- imports file

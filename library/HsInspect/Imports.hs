@@ -1,5 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module HsInspect.Imports where
 
@@ -12,7 +13,7 @@ import           DynFlags (parseDynamicFilePragma, unsafeGlobalDynFlags)
 import           FastString
 import qualified GHC as GHC
 import           HeaderInfo (getOptions)
-import           HscTypes (Target(..), TargetId(..), mgModSummaries)
+import           HscTypes (Target(..), TargetId(..))
 import           HsInspect.Sexp
 import           Json
 import           Lexer
@@ -32,13 +33,14 @@ imports file = do
 
 imports' :: GHC.GhcMonad m => FilePath -> m [GlobalRdrElt]
 imports' file = do
-  target <- workaroundGhc file
+  (m, target) <- workaroundGhc file
 
-  GHC.setTargets [target]
-  _ <- GHC.load GHC.LoadAllTargets
+  GHC.removeTarget $ TargetModule m
+  GHC.addTarget target
 
-  graph <- GHC.getModuleGraph
-  rdr_env <- minf_rdr_env' . GHC.ms_mod_name . head . mgModSummaries $ graph
+  _ <- GHC.load $ GHC.LoadUpTo m
+
+  rdr_env <- minf_rdr_env' m
   pure $ globalRdrEnvElts rdr_env
 
 showGhc :: (Outputable a) => a -> String
@@ -47,7 +49,7 @@ showGhc = showPpr unsafeGlobalDynFlags
 -- TODO CPP should use the trivial impl in ghc 8.8
 
 -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
-workaroundGhc :: GHC.GhcMonad m => FilePath -> m Target
+workaroundGhc :: GHC.GhcMonad m => FilePath -> m (GHC.ModuleName, Target)
 workaroundGhc file = do
   sess <- GHC.getSession
   (dflags, tmp) <- liftIO $ preprocess sess (file, Nothing)
@@ -57,10 +59,10 @@ workaroundGhc file = do
   let pragmas = getOptions dflags full file
       loc  = mkRealSrcLoc (mkFastString file) 1 1
   (dflags', _, _) <- parseDynamicFilePragma dflags pragmas
-  trimmed <- case unP parseHeader (mkPState dflags' full loc) of
-    POk _ (L _ hsmod) -> do
+  (modname, trimmed) <- case unP parseHeader (mkPState dflags' full loc) of
+    POk _ (L _ hsmod@(GHC.hsmodName -> (Just (L _ modname)))) -> do
       let extra =
-            if (unLoc <$> GHC.hsmodName hsmod) == (Just $ GHC.mkModuleName "Main")
+            if modname == (GHC.mkModuleName "Main")
             then "\nmain = return ()" -- TODO check that return is imported
             else ""
           -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/issues/17066
@@ -70,12 +72,11 @@ workaroundGhc file = do
             "{-# OPTIONS_GHC " <> (intercalate " " pragmas') <> " #-}\n" <>
             showPpr dflags' (hsmod { GHC.hsmodExports = Nothing }) <>
             extra
-      -- liftIO . putStrLn $ contents
-      pure . stringToStringBuffer $ contents
+      pure (modname, stringToStringBuffer contents)
     _ -> error "parseHeader failed"
 
   ts <- liftIO $ getModificationTime file
-  pure $ Target (TargetFile file (Just $ Hsc HsSrcFile)) False (Just (trimmed, ts))
+  pure $ (modname, Target (TargetFile file (Just $ Hsc HsSrcFile)) False (Just (trimmed, ts)))
 
 -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
 minf_rdr_env' :: GHC.GhcMonad m => GHC.ModuleName -> m GlobalRdrEnv
