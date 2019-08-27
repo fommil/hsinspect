@@ -50,7 +50,7 @@ main = do
            , GHC.ghcLink   = GHC.NoLink
            }
     let modules = GHC.mkModuleName <$> (filter (isUpper . head) ghcargs)
-    GHC.setTargets $ (\m -> GHC.Target (GHC.TargetModule m) False Nothing) <$> modules
+    GHC.setTargets $ (\m -> GHC.Target (GHC.TargetModule m) True Nothing) <$> modules
     case args of
       "imports" : file : rest -> do
         quals <- imports file
