@@ -46,4 +46,6 @@ library
   -- cabal-fmt: expand library
   exposed-modules:
     HsInspect.Imports
+    HsInspect.Modules
+    HsInspect.Search
     HsInspect.Sexp
