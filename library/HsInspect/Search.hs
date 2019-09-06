@@ -2,25 +2,24 @@
 
 module HsInspect.Search where
 
+import           BinIface (CheckHiWay(..), TraceBinIFaceReading(..),
+                           readBinIface)
 import           Control.Monad
 import           Control.Monad.IO.Class
-import           Data.Coerce
 import           Data.Maybe
-import           FastString (unpackFS)
 import           Finder (findExposedPackageModule)
 import qualified GHC
 import           GHC.PackageDb
-import           HscTypes (FindResult(..))
+import           HscTypes (FindResult(..), ModIface(..))
 import           HsInspect.Sexp
 import           Json
-import           Module (ModLocation(..), Module(..), ModuleName(..), unitIdFS)
+import           Module (ModLocation(..), Module(..), unitIdFS)
 import           PackageConfig
-import           Packages (LookupResult(..), PackageConfigMap(..),
-                           PackageState(..))
-import           UniqDFM (udfmToList)
+import           Packages (LookupResult(..))
+import           TcRnMonad (initTcRnIf)
 
 search :: GHC.GhcMonad m => String -> m [Hit]
-search query = do
+search _query = do
   dflags <- GHC.getSessionDynFlags
   let Just dbs = GHC.pkgDatabase dflags
       pkgs = join (snd <$> dbs)
@@ -30,11 +29,22 @@ search query = do
 getHits :: GHC.GhcMonad m => PackageConfig -> m [Hit]
 getHits pkg = do
   results <- traverse finder (lookups pkg)
-  pure $ toHit <$> results
+  join <$> traverse toHit results
 
-toHit :: FindResult -> Hit
-toHit (Found (ModLocation _ hi _) _) = error "not implemented yet"
-toHit _ = error "not supported"
+toHit :: GHC.GhcMonad m => FindResult -> m [Hit]
+toHit (Found (ModLocation _ hi _) _) = do
+  env <- GHC.getSession
+  iface <- liftIO $ initTcRnIf 'z' env () () $
+    readBinIface IgnoreHiWay QuietBinIFaceReading hi
+  pure [Hit . show . length $ mi_exports iface]
+toHit _ = pure []
+
+-- LookupFound Module PackageConfig
+-- findLookupResult
+-- findExposedPackageModule
+-- lookupIfaceByModule
+-- showIface
+-- readBinIface
 
 finder :: GHC.GhcMonad m => LookupResult -> m FindResult
 finder lup = do
@@ -43,21 +53,14 @@ finder lup = do
 
 -- TODO ghc should export Finder.findLookupResult
 findLookupResult :: GHC.HscEnv -> LookupResult -> IO FindResult
-findLookupResult env (LookupFound (Module id name) _) =
-  findExposedPackageModule env name (Just $ unitIdFS id)
+findLookupResult env (LookupFound (Module mid name) _) =
+  findExposedPackageModule env name (Just $ unitIdFS mid)
 findLookupResult _ _ = error "not supported"
 
 lookups :: PackageConfig -> [LookupResult]
 lookups c@InstalledPackageInfo{exposedModules} =
   let modules = catMaybes $ snd <$> exposedModules
   in flip LookupFound c <$> modules
-
--- LookupFound Module PackageConfig
--- findLookupResult
--- findExposedPackageModule
--- lookupIfaceByModule
--- showIface
--- readBinIface
 
 data Hit = Hit String
 
