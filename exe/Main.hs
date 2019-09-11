@@ -6,6 +6,7 @@ module Main where
 import           Control.Monad
 import           Control.Monad.IO.Class
 import           Data.Char (isUpper)
+import           Data.List (isPrefixOf)
 import           DynFlags (parseDynamicFlagsCmdLine)
 import qualified GHC as GHC
 import           GHC.Paths (libdir)
@@ -41,14 +42,14 @@ help =
 -- http://hackage.haskell.org/package/cabal-helper
 main :: IO ()
 main = do
-  (break ("--" ==) -> (args, flags)) <- getArgs
+  (break ("--" ==) -> (args, filterFlags -> flags)) <- getArgs
   when (elem "--help" args) $
     (putStrLn help) >> exitWith ExitSuccess
   when (elem "--version" args) $
     (putStrLn version) >> exitWith ExitSuccess
   GHC.runGhc (Just libdir) $ do
     dflags <- GHC.getSessionDynFlags
-    (dflags', (GHC.unLoc <$>) -> ghcargs, _) <- liftIO $ parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> tail flags)
+    (dflags', (GHC.unLoc <$>) -> ghcargs, _) <- liftIO $ parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> flags)
     void $ GHC.setSessionDynFlags dflags'
            { GHC.hscTarget = GHC.HscNothing
            , GHC.ghcLink   = GHC.NoLink
@@ -72,6 +73,11 @@ main = do
         respond rest hits
       _ ->
         liftIO $ error "invalid parameters"
+
+-- we filter out warning flags because we don't care about them 
+filterFlags :: [String] -> [String]
+filterFlags ("--" : rest) = filter (not . isPrefixOf "-W") rest
+filterFlags _ = []
 
 encodeJson :: ToJson a => GHC.DynFlags -> [a] -> String
 encodeJson dflags as = show . flip runSDoc ctx . renderJSON $ JSArray (json <$> as)

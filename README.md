@@ -7,9 +7,11 @@ The goal is to provide a very lightweight (zero dependency) command line interfa
 ## Features
 
 - [x] list all imported symbols in scope
+- [x] list all modules that may be imported
 - [ ] Hoogle-style search of the project dependency graph
 - [ ] source location for symbol
 - [ ] documentation for symbol
+- [ ] calculate packages that are actively used by sources in a folder
 
 ## Contributing
 

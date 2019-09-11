@@ -49,3 +49,4 @@ library
     HsInspect.Modules
     HsInspect.Search
     HsInspect.Sexp
+    HsInspect.Workarounds

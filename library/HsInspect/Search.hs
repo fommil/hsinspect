@@ -31,6 +31,10 @@ getHits pkg = do
   results <- traverse finder (lookups pkg)
   join <$> traverse toHit results
 
+-- FIXME finder doesn't work. It probably needs everything to be loaded. Just
+-- traverse the library directories looking for .hi files and filter the modules
+-- based on the exported list. That should avoid the risk of compiling anything.
+
 toHit :: GHC.GhcMonad m => FindResult -> m [Hit]
 toHit (Found (ModLocation _ hi _) _) = do
   env <- GHC.getSession
