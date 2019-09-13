@@ -12,6 +12,7 @@ import qualified GHC as GHC
 import           GHC.Paths (libdir)
 import           HsInspect.Imports
 import           HsInspect.Modules
+import           HsInspect.Packages
 import           HsInspect.Search
 import           HsInspect.Sexp as S
 import           Json
@@ -56,6 +57,8 @@ main = do
            }
     let homeModules = (filter (isUpper . head) ghcargs)
     GHC.setTargets $
+      -- TODO it would be good if ghc had a "binary only" option for Targets
+      --      with fail fast if only source code (no .hi) is discovered.
       (\m -> GHC.Target (GHC.TargetModule $ GHC.mkModuleName m) True Nothing) <$> homeModules
     let respond rest as = liftIO . putStrLn $
           if (elem "--json" rest)
@@ -68,13 +71,16 @@ main = do
       "modules" : rest -> do
         hits <- modules homeModules
         respond rest hits
+      "packages" : dir : rest -> do
+        hits <- packages dir
+        respond rest hits
       "search" : query : rest -> do
         hits <- search query
         respond rest hits
       _ ->
         liftIO $ error "invalid parameters"
 
--- we filter out warning flags because we don't care about them 
+-- we filter out warning flags because we don't care about them
 filterFlags :: [String] -> [String]
 filterFlags ("--" : rest) = filter (not . isPrefixOf "-W") rest
 filterFlags _ = []

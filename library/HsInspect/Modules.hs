@@ -12,6 +12,9 @@ import           PackageConfig
 
 -- TODO package modules, add the package-id
 
+-- FIXME seems to include more modules that in the deps
+-- (could be a tests.sh bug)
+
 modules :: GHC.GhcMonad m => [String] -> m [Hit]
 modules homeModules = do
   dflags <- GHC.getSessionDynFlags

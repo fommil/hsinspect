@@ -47,6 +47,7 @@ library
   exposed-modules:
     HsInspect.Imports
     HsInspect.Modules
+    HsInspect.Packages
     HsInspect.Search
     HsInspect.Sexp
     HsInspect.Workarounds
