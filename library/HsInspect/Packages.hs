@@ -1,11 +1,12 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
 
 module HsInspect.Packages (packages) where
 
 import           BasicTypes (StringLiteral(..))
 import           Control.Monad.IO.Class (liftIO)
-import           Data.List (isSuffixOf, nub, sort)
+import           Data.List (isSuffixOf, nub, sort, (\\))
 import           Data.Maybe (catMaybes)
 import           FastString
 import           Finder (findImportedModule)
@@ -14,30 +15,32 @@ import           HscTypes (FindResult(..))
 import           HsInspect.Sexp
 import           HsInspect.Workarounds
 import           Json
-import           Module (Module(..), unitIdFS)
+import           Module (Module(..), unitIdString)
+import           Packages (PackageState(..))
 import           System.Directory (doesDirectoryExist, listDirectory)
 
-packages :: GHC.GhcMonad m => FilePath -> m [Hit]
+packages :: GHC.GhcMonad m => FilePath -> m PkgSummary
 packages dir = do
+  orig <- GHC.getTargets
   srcs <- liftIO $ (filter (".hs" `isSuffixOf`)) <$> walk dir
-  imps <- nub <$> concatMapM getImports srcs
-  let getPkg (Left m) = findPackage m
-      getPkg (Right p) = pure $ Just p
-  pkgs <- catMaybes <$> traverse getPkg imps
-  pure $ Hit . unpackFS <$> (nub . sort $ pkgs)
+  let parseAndReset s = getImports s <* GHC.setTargets orig
+  imps <- nub <$> concatMapM parseAndReset srcs
+  pkgs <- catMaybes <$> traverse (uncurry findPackage) imps
+  let used = nub . sort $ pkgs
+  dflags <- GHC.getSessionDynFlags
+  let loaded = nub . sort . explicitPackages $ GHC.pkgState dflags
+  pure $ PkgSummary used (loaded \\ used)
 
-findPackage :: GHC.GhcMonad m => GHC.ModuleName -> m (Maybe FastString)
-findPackage m = do
+findPackage :: GHC.GhcMonad m => GHC.ModuleName -> Maybe FastString -> m (Maybe GHC.UnitId)
+findPackage m mp = do
   env <- GHC.getSession
-  res <- liftIO $ findImportedModule env m Nothing
+  res <- liftIO $ findImportedModule env m mp
   pure $ case res of
-    Found _ (Module (unitIdFS -> p) _) -> Just p
+    Found _ (Module u _) -> Just $ u
     _ -> Nothing
 
-getImports :: GHC.GhcMonad m => FilePath -> m [Either GHC.ModuleName FastString]
+getImports :: GHC.GhcMonad m => FilePath -> m [(GHC.ModuleName, Maybe FastString)]
 getImports file = do
-  orig <- GHC.getTargets
-
   (m, target) <- importsOnly file
   GHC.removeTarget $ GHC.TargetModule m
   GHC.addTarget target
@@ -47,35 +50,26 @@ getImports file = do
   pmod <- GHC.parseModule modSum
   tmod <- GHC.typecheckModule pmod
 
-  GHC.setTargets orig
-  -- TODO do we need to unload?
-
   case GHC.tm_renamed_source tmod of
     Nothing -> error $ "bad file: " ++ file
     Just (_, (GHC.unLoc <$>) -> imports, _, _) ->
-      pure . catMaybes $ moduleOrPackage <$> imports
+      pure . catMaybes $ qModule <$> imports
 
-moduleOrPackage :: GHC.ImportDecl p -> Maybe (Either GHC.ModuleName FastString)
-moduleOrPackage GHC.ImportDecl{GHC.ideclName, GHC.ideclPkgQual} = pure $
-  case ideclPkgQual of
-    Just pkg -> Right $ sl_fs pkg
-    Nothing  -> Left $ GHC.unLoc ideclName
-moduleOrPackage _ = Nothing
+qModule :: GHC.ImportDecl p -> Maybe (GHC.ModuleName, Maybe FastString)
+qModule GHC.ImportDecl{GHC.ideclName, GHC.ideclPkgQual} = Just $
+  (GHC.unLoc ideclName, qual)
+  where qual = sl_fs <$> ideclPkgQual
+qModule _ = Nothing -- TODO CPP for 8.6.5+
 
 walk :: FilePath -> IO [FilePath]
 walk dir = do
-  fs <- listDirectory dir
-  let qfs = ((dir <> "/") <>) <$> fs
-  (dirs, files) <- partitionM doesDirectoryExist qfs
-  (files <>) <$> (concatMapM walk dirs)
-
--- from extra
-partitionM :: Monad m => (a -> m Bool) -> [a] -> m ([a], [a])
-partitionM _ [] = pure ([], [])
-partitionM f (x : xs) = do
-  res <- f x
-  (as, bs) <- partitionM f xs
-  pure ([x | res] ++ as, [x | not res] ++ bs)
+  isDir <- doesDirectoryExist dir
+  if isDir
+  then do fs <- listDirectory dir
+          let base = dir <> "/"
+              qfs = (base <>) <$> fs
+          concatMapM walk qfs
+  else pure [dir]
 
 -- from extra
 concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
@@ -88,11 +82,18 @@ concatMapM op = foldr f (pure [])
               xs' <- xs
               pure $ x' ++ xs'
 
-data Hit = Hit String
+data PkgSummary = PkgSummary [GHC.UnitId] [GHC.UnitId]
   deriving (Eq, Ord)
 
-instance ToSexp Hit where
-  toSexp (Hit txt) = toSexp txt
+instance ToSexp PkgSummary where
+  toSexp (PkgSummary used unused) =
+    alist [ ("used", toS used)
+          , ("unused", toS unused) ]
+    where toS ids = toSexp $ unitIdString <$> ids
 
-instance ToJson Hit where
-  json (Hit txt) = JSString txt
+instance ToJson PkgSummary where
+  json (PkgSummary used unused) =
+    JSObject [ ("used", toJ used)
+             , ("unused", toJ unused) ]
+    where toJ ids = JSArray $ JSString . unitIdString <$> ids
+

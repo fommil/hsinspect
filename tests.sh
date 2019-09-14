@@ -35,6 +35,7 @@ for t in * ; do
     find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$HSINSPECT imports {} -- -XLambdaCase > {}.$GHC_VERSION.imports.sexp"
     find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$HSINSPECT imports {} --json -- -XLambdaCase | python -m json.tool > {}.$GHC_VERSION.imports.json"
     find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$HSINSPECT modules {} --json -- -XLambdaCase | python -m json.tool > {}.$GHC_VERSION.modules.json"
+    "$HSINSPECT" packages library --json -- -XLambdaCase | python -m json.tool > library/$GHC_VERSION.packages.json
     unset GHC_ENVIRONMENT
 done
 

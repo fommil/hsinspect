@@ -1,6 +1,8 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Main where
 
 import           Control.Monad
@@ -35,6 +37,7 @@ help =
   "                             along with their locally qualified (and\n" ++
   "                             unqualified) names.\n" ++
   "  modules /path/to/file.hs - list all modules that could be imported by file.\n" ++
+  "  packages /path/to/dir    - list all packages that are imported by this dir.\n" ++
   "  search  /path/to/file.hs QUERY - Hoogle query within the file's context.\n "
 
 -- Possible backends:
@@ -85,6 +88,9 @@ filterFlags :: [String] -> [String]
 filterFlags ("--" : rest) = filter (not . isPrefixOf "-W") rest
 filterFlags _ = []
 
-encodeJson :: ToJson a => GHC.DynFlags -> [a] -> String
-encodeJson dflags as = show . flip runSDoc ctx . renderJSON $ JSArray (json <$> as)
+encodeJson :: ToJson a => GHC.DynFlags -> a -> String
+encodeJson dflags as = show . flip runSDoc ctx . renderJSON . json $ as
   where ctx = initSDocContext dflags $ defaultUserStyle dflags
+
+instance ToJson a => ToJson [a] where
+  json as = JSArray $ json <$> as
