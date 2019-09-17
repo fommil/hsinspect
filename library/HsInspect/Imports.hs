@@ -21,7 +21,7 @@ imports file = do
 imports' :: GHC.GhcMonad m => FilePath -> m [GlobalRdrElt]
 imports' file = do
   -- TODO no need for this in 8.8.2+
-  (m, target) <- importsOnly file
+  (m, target) <- importsOnly [] file
   GHC.removeTarget $ TargetModule m
   GHC.addTarget target
 

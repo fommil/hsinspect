@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -5,6 +6,7 @@
 module HsInspect.Packages (packages) where
 
 import           BasicTypes (StringLiteral(..))
+import           Control.Monad (join)
 import           Control.Monad.IO.Class (liftIO)
 import           Data.List (isSuffixOf, nub, sort, (\\))
 import           Data.Maybe (catMaybes)
@@ -15,23 +17,43 @@ import           HscTypes (FindResult(..))
 import           HsInspect.Sexp
 import           HsInspect.Workarounds
 import           Json
-import           Module (Module(..), unitIdString)
+import           Module (Module(..), ModuleName, moduleNameString, unitIdString)
 import           Packages (PackageState(..))
 import           System.Directory (doesDirectoryExist, listDirectory)
 
+-- Similar to packunused / weeder, but more reliable (and doesn't require a
+-- separate -ddump-minimal-imports pass).
+--
+-- TODO support list of dirs not just one
 packages :: GHC.GhcMonad m => FilePath -> m PkgSummary
 packages dir = do
-  orig <- GHC.getTargets
+  -- We load all .hs files in dir, assuming they are the sources of the home
+  -- module, but with a twist: we only parse the imports from external packages.
+  -- To do this we have to unload the home modules as provided by parameters and
+  -- filter then when parsing the imports section.
+  args <- GHC.getTargets
+  let homes = catMaybes $ getModule <$> args
+
   srcs <- liftIO $ (filter (".hs" `isSuffixOf`)) <$> walk dir
-  let parseAndReset s = getImports s <* GHC.setTargets orig
-  imps <- nub <$> concatMapM parseAndReset srcs
+
+  -- mods == homes. We could do two passes (ignore provided targets)
+  (mods, targets) <- unzip <$> traverse (importsOnly homes) srcs
+  _ <- GHC.setTargets targets
+  _ <- GHC.load $ GHC.LoadAllTargets
+
+  imps <- nub . join <$> traverse getImports mods
   pkgs <- catMaybes <$> traverse (uncurry findPackage) imps
   let used = nub . sort $ pkgs
   dflags <- GHC.getSessionDynFlags
   let loaded = nub . sort . explicitPackages $ GHC.pkgState dflags
   pure $ PkgSummary used (loaded \\ used)
 
-findPackage :: GHC.GhcMonad m => GHC.ModuleName -> Maybe FastString -> m (Maybe GHC.UnitId)
+getModule :: GHC.Target -> Maybe ModuleName
+getModule GHC.Target{GHC.targetId} = case targetId of
+  GHC.TargetModule m -> Just m
+  GHC.TargetFile _ _ -> Nothing
+
+findPackage :: GHC.GhcMonad m => ModuleName -> Maybe FastString -> m (Maybe GHC.UnitId)
 findPackage m mp = do
   env <- GHC.getSession
   res <- liftIO $ findImportedModule env m mp
@@ -39,27 +61,23 @@ findPackage m mp = do
     Found _ (Module u _) -> Just $ u
     _ -> Nothing
 
-getImports :: GHC.GhcMonad m => FilePath -> m [(GHC.ModuleName, Maybe FastString)]
-getImports file = do
-  (m, target) <- importsOnly file
-  GHC.removeTarget $ GHC.TargetModule m
-  GHC.addTarget target
-
-  _ <- GHC.load $ GHC.LoadUpTo m
+getImports :: GHC.GhcMonad m => ModuleName -> m [(ModuleName, Maybe FastString)]
+getImports m = do
   modSum <- GHC.getModSummary m
   pmod <- GHC.parseModule modSum
   tmod <- GHC.typecheckModule pmod
-
   case GHC.tm_renamed_source tmod of
-    Nothing -> error $ "bad file: " ++ file
+    Nothing -> error $ "bad module: " ++ moduleNameString m
     Just (_, (GHC.unLoc <$>) -> imports, _, _) ->
       pure . catMaybes $ qModule <$> imports
 
-qModule :: GHC.ImportDecl p -> Maybe (GHC.ModuleName, Maybe FastString)
+qModule :: GHC.ImportDecl p -> Maybe (ModuleName, Maybe FastString)
 qModule GHC.ImportDecl{GHC.ideclName, GHC.ideclPkgQual} = Just $
   (GHC.unLoc ideclName, qual)
   where qual = sl_fs <$> ideclPkgQual
-qModule _ = Nothing -- TODO CPP for 8.6.5+
+#if MIN_VERSION_GLASGOW_HASKELL(8,6,0,0)
+qModule (GHC.XImportDecl _) = Nothing
+#endif
 
 walk :: FilePath -> IO [FilePath]
 walk dir = do

@@ -83,9 +83,10 @@ main = do
       _ ->
         liftIO $ error "invalid parameters"
 
--- we filter out warning flags because we don't care about them
+-- FIXME let each component remove things that interfere
 filterFlags :: [String] -> [String]
-filterFlags ("--" : rest) = filter (not . isPrefixOf "-W") rest
+filterFlags ("--" : rest) = filter allow rest
+  where allow flag = "-Wno" `isPrefixOf` flag || not ("-W" `isPrefixOf` flag)
 filterFlags _ = []
 
 encodeJson :: ToJson a => GHC.DynFlags -> a -> String
