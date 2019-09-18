@@ -26,7 +26,7 @@ import           System.Directory (getModificationTime, removeFile)
 import           TcRnTypes (tcg_rdr_env)
 
 -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
-importsOnly :: GHC.GhcMonad m => [GHC.ModuleName] -> FilePath -> m (GHC.ModuleName, Target)
+importsOnly :: GHC.GhcMonad m => [GHC.ModuleName] -> FilePath -> m (Maybe GHC.ModuleName, Target)
 importsOnly homes file = do
   sess <- GHC.getSession
   (dflags, tmp) <- liftIO $ preprocess sess (file, Nothing)
@@ -43,12 +43,9 @@ importsOnly homes file = do
   (dflags', _, _) <- parseDynamicFilePragma dflags pragmas
   (modname, trimmed) <- case unP parseHeader (mkPState dflags' full loc) of
     POk _ (L _ hsmod) -> do
-      let main = GHC.mkModuleName "Main"
-          modname = case GHC.hsmodName hsmod of
-            Just (L _ m) -> m
-            Nothing -> main
+      let modname = unLoc <$> GHC.hsmodName hsmod
           extra =
-            if modname == main
+            if modname == Nothing || modname == (Just $ GHC.mkModuleName "Main")
             then "\nmain = return ()" -- TODO check that return is imported
             else ""
           imps = filter allowed $ GHC.hsmodImports hsmod

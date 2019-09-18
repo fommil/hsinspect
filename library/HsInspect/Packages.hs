@@ -37,7 +37,7 @@ packages dir = do
   srcs <- liftIO $ (filter (".hs" `isSuffixOf`)) <$> walk dir
 
   -- mods == homes. We could do two passes (ignore provided targets)
-  (mods, targets) <- unzip <$> traverse (importsOnly homes) srcs
+  (catMaybes -> mods, targets) <- unzip <$> traverse (importsOnly homes) srcs
   _ <- GHC.setTargets targets
   _ <- GHC.load $ GHC.LoadAllTargets
 

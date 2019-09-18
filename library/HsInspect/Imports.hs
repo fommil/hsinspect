@@ -1,8 +1,10 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module HsInspect.Imports where
 
+import           Data.Maybe (fromJust)
 import           DynFlags (unsafeGlobalDynFlags)
 import qualified GHC as GHC
 import           HscTypes (TargetId(..))
@@ -10,8 +12,8 @@ import           HsInspect.Sexp
 import           HsInspect.Workarounds
 import           Json
 import           Outputable (Outputable, showPpr)
-import           RdrName (GlobalRdrElt(..), ImpDeclSpec(..),
-                          ImportSpec(..), globalRdrEnvElts)
+import           RdrName (GlobalRdrElt(..), ImpDeclSpec(..), ImportSpec(..),
+                          globalRdrEnvElts)
 
 imports :: GHC.GhcMonad m => FilePath -> m [Qualified]
 imports file = do
@@ -21,7 +23,8 @@ imports file = do
 imports' :: GHC.GhcMonad m => FilePath -> m [GlobalRdrElt]
 imports' file = do
   -- TODO no need for this in 8.8.2+
-  (m, target) <- importsOnly [] file
+  (fromJust -> m, target) <- importsOnly [] file
+
   GHC.removeTarget $ TargetModule m
   GHC.addTarget target
 

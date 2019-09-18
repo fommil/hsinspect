@@ -8,6 +8,8 @@
 #
 # 1. some packages appear unused but compilation fails without them (e.g. protolens-runtime)
 # 2. only one source dir per local package is supported
+# 3. directories containing multiple Main will fail
+# 4. files that don't declare a module name will be ignored (e.g. test runners)
 
 if [ ! -f .ghc.version ] ; then
     echo ".ghc.version must exist"
@@ -25,7 +27,20 @@ for P in $(find . -path ./dist-newstyle -prune -o -name "*.cabal" -print) ; do
 
     for C in $(find . -name .ghc.flags) ; do
         S="$(dirname $C)"
-        echo "$S"
-        $HSINSPECT packages "$S" --json -- $(cat "$C") | jq '.unused'
+        echo "  $S"
+        OUT="$S/.hsinspect.unused"
+        if [ -f "$OUT" ] ; then
+            rm "$OUT"
+        fi
+        REPORT=$($HSINSPECT packages "$S" --json -- $(cat "$C"))
+
+        if [ $? -eq 0 ] ; then
+            UNUSED=$(echo $REPORT | jq '.unused')
+            if [ "$UNUSED" != "[]" ] ; then
+                echo "$UNUSED" > "$S/.hsinspect.unused"
+            fi
+        else
+            echo $REPORT
+        fi
     done
 done
