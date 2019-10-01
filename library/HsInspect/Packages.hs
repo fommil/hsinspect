@@ -10,6 +10,7 @@ import           Control.Monad (join)
 import           Control.Monad.IO.Class (liftIO)
 import           Data.List (isSuffixOf, nub, sort, (\\))
 import           Data.Maybe (catMaybes)
+import qualified Data.Set as Set
 import           FastString
 import           Finder (findImportedModule)
 import qualified GHC
@@ -32,7 +33,7 @@ packages dir = do
   -- To do this we have to unload the home modules as provided by parameters and
   -- filter then when parsing the imports section.
   args <- GHC.getTargets
-  let homes = catMaybes $ getModule <$> args
+  let homes = Set.fromList . catMaybes $ getModule <$> args
 
   srcs <- liftIO $ (filter (".hs" `isSuffixOf`)) <$> walk dir
 

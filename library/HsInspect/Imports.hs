@@ -23,7 +23,7 @@ imports file = do
 imports' :: GHC.GhcMonad m => FilePath -> m [GlobalRdrElt]
 imports' file = do
   -- TODO no need for this in 8.8.2+
-  (fromJust -> m, target) <- importsOnly [] file
+  (fromJust -> m, target) <- importsOnly mempty file
 
   -- FIXME filter the source directory paths so that we never try to load the
   --       sources in the home package: require binary-only for performance.

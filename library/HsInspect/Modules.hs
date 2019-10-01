@@ -1,32 +1,36 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
 -- | Calculate all exposed modules that could be imported.
-module HsInspect.Modules(modules) where
+module HsInspect.Modules
+  ( modules,
+  )
+where
 
-import           Data.List (sort)
+import Data.List (sort)
+import Data.Set (Set)
+import qualified Data.Set as Set
 import qualified GHC
-import           GHC.PackageDb
-import           HsInspect.Sexp
-import           Json
-import           PackageConfig
-
--- TODO package modules, add the package-id
-
--- FIXME seems to include more modules that in the deps
--- (could be a tests.sh bug)
+import GHC.PackageDb
+import HsInspect.Sexp
+import Json
+import Module (UnitId)
+import PackageConfig
+import Packages (explicitPackages)
 
 modules :: GHC.GhcMonad m => [String] -> m [Hit]
 modules homeModules = do
   dflags <- GHC.getSessionDynFlags
   let Just dbs = GHC.pkgDatabase dflags
+      loaded = Set.fromList . explicitPackages $ GHC.pkgState dflags
       home = Hit <$> homeModules
-      away = (mods =<<) =<< (snd <$> dbs)
+      away = (mods loaded =<<) =<< (snd <$> dbs)
   pure . sort $ home <> away
 
--- TODO filter by exposed packages
-mods :: PackageConfig -> [Hit]
-mods InstalledPackageInfo{exposedModules} =
-  Hit . GHC.moduleNameString . fst <$> exposedModules
+mods :: Set UnitId -> PackageConfig -> [Hit]
+mods allowed p =
+  if Set.notMember (packageConfigId p) allowed
+    then []
+    else Hit . GHC.moduleNameString . fst <$> exposedModules p
 
 data Hit = Hit String
   deriving (Eq, Ord)

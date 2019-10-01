@@ -1,13 +1,14 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ViewPatterns #-}
 
 module HsInspect.Workarounds where
 
 import           Control.Monad
 import           Control.Monad.IO.Class
 import           Data.List (delete, intercalate, isSuffixOf)
+import           Data.Set (Set)
+import qualified Data.Set as Set
 import           DriverPhases (HscSource(..), Phase(..))
 import           DriverPipeline (preprocess)
 import           DynFlags (parseDynamicFilePragma)
@@ -26,7 +27,7 @@ import           System.Directory (getModificationTime, removeFile)
 import           TcRnTypes (tcg_rdr_env)
 
 -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
-importsOnly :: GHC.GhcMonad m => [GHC.ModuleName] -> FilePath -> m (Maybe GHC.ModuleName, Target)
+importsOnly :: GHC.GhcMonad m => Set GHC.ModuleName -> FilePath -> m (Maybe GHC.ModuleName, Target)
 importsOnly homes file = do
   sess <- GHC.getSession
   (dflags, tmp) <- liftIO $ preprocess sess (file, Nothing)
@@ -35,8 +36,7 @@ importsOnly homes file = do
     liftIO . removeFile $ tmp
   let pragmas = getOptions dflags full file
       loc  = mkRealSrcLoc (mkFastString file) 1 1
-      -- TODO elem is a potential perf problem
-      allowed (L _ (ImportDecl{ideclName})) = notElem (unLoc ideclName) homes
+      allowed (L _ (ImportDecl{ideclName})) = Set.notMember (unLoc ideclName) homes
 #if MIN_VERSION_GLASGOW_HASKELL(8,6,0,0)
       allowed (L _ (XImportDecl _)) = False
 #endif

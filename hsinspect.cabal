@@ -21,6 +21,7 @@ source-repository head
 common deps
   build-depends:
     , base       >=4.11 && <5
+    , containers
     , directory
     , ghc
     , ghc-boot
