@@ -4,6 +4,7 @@
 
 module HsInspect.Imports where
 
+import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromJust)
 import DynFlags (unsafeGlobalDynFlags)
 import qualified GHC as GHC
@@ -21,6 +22,12 @@ import RdrName
 
 imports :: GHC.GhcMonad m => FilePath -> m [Qualified]
 imports file = do
+  -- HACK: to force ghc to only read object files and not to try and compile any
+  -- dependencies, we filter out all include paths that contain the requested
+  -- file.
+  flags <- GHC.getProgramDynFlags
+  -- liftIO $ putStrLn $ show $ GHC.importPaths flags
+
   gres <- imports' file
   pure $ describe =<< gres
 

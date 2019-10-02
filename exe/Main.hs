@@ -83,7 +83,7 @@ main = do
       _ ->
         liftIO $ error "invalid parameters"
 
--- FIXME let each component remove things that interfere
+-- TODO let each component remove things that interfere
 filterFlags :: [String] -> [String]
 filterFlags ("--" : rest) = filter allow rest
   where allow flag = "-Wno" `isPrefixOf` flag || not ("-W" `isPrefixOf` flag)
