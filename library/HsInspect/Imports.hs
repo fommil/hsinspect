@@ -4,7 +4,9 @@
 
 module HsInspect.Imports where
 
+import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
+import Data.List (isPrefixOf)
 import Data.Maybe (fromJust)
 import DynFlags (unsafeGlobalDynFlags)
 import qualified GHC as GHC
@@ -19,14 +21,18 @@ import RdrName
     ImportSpec (..),
     globalRdrEnvElts,
   )
+import System.Directory (makeAbsolute)
 
 imports :: GHC.GhcMonad m => FilePath -> m [Qualified]
 imports file = do
-  -- HACK: to force ghc to only read object files and not to try and compile any
-  -- dependencies, we filter out all include paths that contain the requested
-  -- file.
-  flags <- GHC.getProgramDynFlags
-  -- liftIO $ putStrLn $ show $ GHC.importPaths flags
+  -- HACK: to force ghc to prefer stale .hi deps over .hs, filter out the
+  --       current module's source directory.
+  flags <- GHC.getSessionDynFlags
+  let absolute = liftIO . makeAbsolute
+  paths <- traverse absolute $ GHC.importPaths flags
+  file' <- absolute file
+  let nosrc = filter (\p -> not $ p `isPrefixOf` file') paths
+  void . GHC.setSessionDynFlags $ flags {GHC.importPaths = nosrc}
 
   gres <- imports' file
   pure $ describe =<< gres
@@ -36,8 +42,6 @@ imports' file = do
   -- TODO no need for this in 8.8.2+
   (fromJust -> m, target) <- importsOnly mempty file
 
-  -- FIXME filter the source directory paths so that we never try to load the
-  --       sources in the home package: require binary-only for performance.
   GHC.removeTarget $ TargetModule m
   GHC.addTarget target
 
