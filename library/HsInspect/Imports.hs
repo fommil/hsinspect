@@ -4,9 +4,6 @@
 
 module HsInspect.Imports where
 
-import Control.Monad (void)
-import Control.Monad.IO.Class (liftIO)
-import Data.List (isPrefixOf)
 import Data.Maybe (fromJust)
 import DynFlags (unsafeGlobalDynFlags)
 import qualified GHC as GHC
@@ -21,19 +18,9 @@ import RdrName
     ImportSpec (..),
     globalRdrEnvElts,
   )
-import System.Directory (makeAbsolute)
 
 imports :: GHC.GhcMonad m => FilePath -> m [Qualified]
 imports file = do
-  -- HACK: to force ghc to prefer stale .hi deps over .hs, filter out the
-  --       current module's source directory.
-  flags <- GHC.getSessionDynFlags
-  let absolute = liftIO . makeAbsolute
-  paths <- traverse absolute $ GHC.importPaths flags
-  file' <- absolute file
-  let nosrc = filter (\p -> not $ p `isPrefixOf` file') paths
-  void . GHC.setSessionDynFlags $ flags {GHC.importPaths = nosrc}
-
   gres <- imports' file
   pure $ describe =<< gres
 
@@ -45,6 +32,8 @@ imports' file = do
   GHC.removeTarget $ TargetModule m
   GHC.addTarget target
 
+  -- TODO performance can be very bad here. It is possible that ghc is compiling
+  -- modules in the home module that have .hi files that would be much faster.
   _ <- GHC.load $ GHC.LoadUpTo m
 
   rdr_env <- minf_rdr_env' m
