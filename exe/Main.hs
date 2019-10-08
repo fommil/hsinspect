@@ -55,8 +55,8 @@ main = do
     dflags <- GHC.getSessionDynFlags
     (dflags', (GHC.unLoc <$>) -> ghcargs, _) <- liftIO $ parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> flags)
     void $ GHC.setSessionDynFlags dflags'
-           { GHC.hscTarget = GHC.HscNothing
-           , GHC.ghcLink   = GHC.NoLink
+           { GHC.hscTarget = GHC.HscInterpreted -- HscNothing compiles home modules, dunno why
+           , GHC.ghcLink   = GHC.LinkInMemory   -- required by HscInterpreted
            }
     let homeModules = (filter (isUpper . head) ghcargs)
     GHC.setTargets $
