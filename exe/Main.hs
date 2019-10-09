@@ -57,6 +57,7 @@ main = do
     void $ GHC.setSessionDynFlags dflags'
            { GHC.hscTarget = GHC.HscInterpreted -- HscNothing compiles home modules, dunno why
            , GHC.ghcLink   = GHC.LinkInMemory   -- required by HscInterpreted
+           , GHC.ghcMode   = GHC.MkDepend       -- prefer .hi to .hs for dependencies
            }
     let homeModules = (filter (isUpper . head) ghcargs)
     GHC.setTargets $

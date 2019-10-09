@@ -6,7 +6,7 @@
 module HsInspect.Packages (packages) where
 
 import           BasicTypes (StringLiteral(..))
-import           Control.Monad (join)
+import           Control.Monad (join, void)
 import           Control.Monad.IO.Class (liftIO)
 import           Data.List (isSuffixOf, nub, sort, (\\))
 import           Data.Maybe (catMaybes)
@@ -40,12 +40,14 @@ packages dir = do
   -- mods == homes. We could do two passes (ignore provided targets)
   (catMaybes -> mods, targets) <- unzip <$> traverse (importsOnly homes) srcs
   _ <- GHC.setTargets targets
+
+  dflags <- GHC.getSessionDynFlags
+  void $ GHC.setSessionDynFlags dflags { GHC.ghcMode = GHC.CompManager }
   _ <- GHC.load $ GHC.LoadAllTargets
 
   imps <- nub . join <$> traverse getImports mods
   pkgs <- catMaybes <$> traverse (uncurry findPackage) imps
   let used = nub . sort $ pkgs
-  dflags <- GHC.getSessionDynFlags
   let loaded = nub . sort . explicitPackages $ GHC.pkgState dflags
   pure $ PkgSummary used (loaded \\ used)
 
