@@ -1,0 +1,7 @@
+packages: ./, tests/medley
+
+constraints: contravariant -tagged -semigroups -StateVar
+
+package medley
+  tests: True
+  ghc-options: -fplugin HsInspect.Plugin

@@ -5,11 +5,6 @@
         "qual": "C.Contravariant"
     },
     {
-        "full": "Data.Functor.Contravariant.Op",
-        "local": "Op",
-        "qual": "C.Op"
-    },
-    {
         "full": "Data.Functor.Contravariant.Comparison",
         "local": "Comparison",
         "qual": "C.Comparison"
@@ -18,6 +13,11 @@
         "full": "Data.Functor.Contravariant.Equivalence",
         "local": "Equivalence",
         "qual": "C.Equivalence"
+    },
+    {
+        "full": "Data.Functor.Contravariant.Op",
+        "local": "Op",
+        "qual": "C.Op"
     },
     {
         "full": "Data.Functor.Contravariant.Predicate",
@@ -25,11 +25,6 @@
         "qual": "C.Predicate"
     },
     {
-        "full": "Data.Functor.Contravariant.Op",
-        "local": "Op",
-        "qual": "C.Op"
-    },
-    {
         "full": "Data.Functor.Contravariant.Comparison",
         "local": "Comparison",
         "qual": "C.Comparison"
@@ -38,6 +33,11 @@
         "full": "Data.Functor.Contravariant.Equivalence",
         "local": "Equivalence",
         "qual": "C.Equivalence"
+    },
+    {
+        "full": "Data.Functor.Contravariant.Op",
+        "local": "Op",
+        "qual": "C.Op"
     },
     {
         "full": "Data.Functor.Contravariant.Predicate",
@@ -53,6 +53,11 @@
         "full": "Medley.Wobble.wobble",
         "local": "wobble",
         "qual": null
+    },
+    {
+        "full": "Data.Functor.Contravariant.contramap",
+        "local": "contramap",
+        "qual": "C.contramap"
     },
     {
         "full": "Data.Functor.Contravariant.getComparison",
@@ -93,11 +98,6 @@
         "full": "Data.Functor.Contravariant.>$<",
         "local": ">$<",
         "qual": "C.>$<"
-    },
-    {
-        "full": "Data.Functor.Contravariant.contramap",
-        "local": "contramap",
-        "qual": "C.contramap"
     },
     {
         "full": "Data.Functor.Contravariant.comparisonEquivalence",

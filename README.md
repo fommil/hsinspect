@@ -6,8 +6,10 @@ The goal is to provide a very lightweight (zero dependency) command line interfa
 
 ## Features
 
+- [x] obtain ghc flags
 - [x] list all imported symbols in scope
 - [x] list all modules that may be imported
+- [x] list all used and unused packages
 - [ ] Hoogle-style search of the project dependency graph
 - [ ] source location for symbol
 - [ ] documentation for symbol
@@ -35,19 +37,36 @@ HIE uses the [LSP](https://langserver.org/) so that there is (in theory, but rar
 
 However, LSP servers come with a large cost: they have a lifecycle that must be managed and the text editor needs to know how to communicate with the server. Persistent servers can become a problem in themselves as they can leak resources. The machinary required to support the LSP protocol and a monolithic featureset means that the compiletime is very long (which must be repeated per ghc version).
 
-`hsinspect` is a leightweight command line tool that compiles very quickly and only requires a `ghc.environment` file at runtime. Each text editor must implement custom support but in reality this is not a lot of work because the featureset is small and focused. `hsinspect` does not provide end-user features such as "completion at point" but instead provides raw semantic information that allows the text editor to calculate an answer.
+`hsinspect` is a leightweight command line tool (and optional compiler plugin) that compiles very quickly and only requires access to the ghc flags used to compile the package. Each text editor must implement custom support but in reality this is not a lot of work because the featureset is small and focused. `hsinspect` does not provide end-user features such as "completion at point" but instead provides raw semantic information that allows the text editor to calculate an answer.
 
-## Known Upstream Issues
+## Installation
 
-`hsinspect` only works if it has access to the flags, arguments, and `PATH` that
-is used by the batch compiler. Obtaining this information is very difficult, see
-https://github.com/haskell/cabal/issues/6203. `haskell-tng.el` includes a
-workaround for this that is unfortunately very slow.
+### Plugin
 
-The following might improve things, which are a general problem for Haskell
-tooling authors:
+The compiler plugin must be installed for every project you plan to inspect:
 
-- https://github.com/DanielG/cabal-helper/issues/75
-- https://github.com/haskell/cabal/pull/5954
-- [`hie-bios`](https://github.com/mpickering/hie-bios) for (optional) stack
-  support. This will not be enabled by default because it is a large dependency.
+1. add a dependency on `hsinspect`
+2. add `-fplugin HsInspect.Plugin` to `ghc-options`
+
+It is possible to enable the plugin on a per-user basis using `-packagedb` and `-packageid`, however that is left as an exercise for people who know what they are doing.
+
+Alternatively, you can create a `.ghc.flags` and `.ghc.version` file manually or using the hacks described in https://github.com/haskell/cabal/issues/6203
+
+### Command Line Tool
+
+You must install `hsinspect` for every version of `ghc` that you plan to use, e.g.
+
+```
+rm -f ~/.cabal/bin/hsinspect
+for V in 8.4.4 8.6.5 ; do
+  cabal v2-install hsinspect -w ghc-$V -O2 &&
+  mv -f ~/.cabal/bin/hsinspect ~/.cabal/bin/hsinspect-ghc-$V
+done
+```
+
+<!--
+for V in 8.4.4 8.6.5 ; do
+  cabal v2-install exe:hsinspect -w ghc-$V -O2 &&
+  mv -f ~/.cabal/bin/hsinspect ~/.cabal/bin/hsinspect-ghc-$V
+done
+-->

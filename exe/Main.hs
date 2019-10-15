@@ -9,7 +9,7 @@ import           Control.Monad
 import           Control.Monad.IO.Class
 import           Data.Char (isUpper)
 import           Data.List (isPrefixOf)
-import           DynFlags (parseDynamicFlagsCmdLine)
+import           DynFlags (parseDynamicFlagsCmdLine, updOptLevel)
 import qualified GHC as GHC
 import           GHC.Paths (libdir)
 import           HsInspect.Imports
@@ -51,9 +51,11 @@ main = do
     (putStrLn help) >> exitWith ExitSuccess
   when (elem "--version" args) $
     (putStrLn version) >> exitWith ExitSuccess
+  -- TODO require a -B flag instead of the ghc-paths dependency
   GHC.runGhc (Just libdir) $ do
     dflags <- GHC.getSessionDynFlags
-    (dflags', (GHC.unLoc <$>) -> ghcargs, _) <- liftIO $ parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> flags)
+    (updOptLevel 0 -> dflags', (GHC.unLoc <$>) -> ghcargs, _) <-
+      liftIO $ parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> flags)
     void $ GHC.setSessionDynFlags dflags'
            { GHC.hscTarget = GHC.HscInterpreted -- HscNothing compiles home modules, dunno why
            , GHC.ghcLink   = GHC.LinkInMemory   -- required by HscInterpreted

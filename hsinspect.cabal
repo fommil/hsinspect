@@ -20,7 +20,7 @@ source-repository head
 
 common deps
   build-depends:
-    , base       >=4.11 && <5
+    , base        >=4.11 && <5
     , containers
     , directory
     , ghc
@@ -49,6 +49,7 @@ library
     HsInspect.Imports
     HsInspect.Modules
     HsInspect.Packages
+    HsInspect.Plugin
     HsInspect.Search
     HsInspect.Sexp
     HsInspect.Workarounds

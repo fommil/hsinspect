@@ -1,5 +1,0 @@
-packages: ./
-constraints: contravariant -tagged -semigroups -StateVar
-
-tests: True
-optimization: False

@@ -18,5 +18,7 @@ library
   import:             deps
   hs-source-dirs:     library
   build-depends:      contravariant ^>= 1.5.2
+                    , hsinspect
+                    -- ^ users can inject via ghc-options, but it's difficult to wire up inplace modules
   exposed-modules:    Medley.Wibble
                     , Medley.Wobble

@@ -1,14 +1,9 @@
 {
     "unused": [
-        "ghc-prim",
-        "integer-gmp",
-        "medley-0.0.1-inplace",
-        "rts",
-        "transformers-0.5.5.0"
+        "hsinspect-0.0.4-inplace"
     ],
     "used": [
         "base",
-        "contravariant-1.5.2-f870f159691de7d69e5ecbca31de987f896a3c7da795371a806dd2798d3a0053",
-        "main"
+        "contravariant-1.5.2-f870f159691de7d69e5ecbca31de987f896a3c7da795371a806dd2798d3a0053"
     ]
 }

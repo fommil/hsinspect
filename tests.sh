@@ -11,12 +11,7 @@ else
     GHC_VERSION=ghc-8.4.4
 fi
 
-cabal v2-build -w $GHC_VERSION
-HSINSPECT=$(cabal v2-exec -w $GHC_VERSION -v0 -- which hsinspect)
-
-# test for exceptions...
-$HSINSPECT --help
-$HSINSPECT --version
+HSINSPECT="cabal v2-run -w $GHC_VERSION -v0 hsinspect --"
 
 cd tests
 
@@ -24,22 +19,34 @@ for t in * ; do
     echo "testing $t"
     cd "$SCRIPT_DIR/tests/$t"
 
-    # See the README for reasons why we have to manually create an env file from
-    # a good build.
-    cabal v2-build -w $GHC_VERSION --constraint="medley -uncompilable" :all:libraries
-    cabal v2-exec -w $GHC_VERSION --constraint="medley -uncompilable" -- sh -c 'cat $GHC_ENVIRONMENT > .hsinspect.env'
+    cabal v2-clean
+    rm -rf .ghc.version library/.ghc.flags || true
 
-    cabal v2-build -w $GHC_VERSION all > /dev/null 2>&1 || true
-    export GHC_ENVIRONMENT="$PWD/.hsinspect.env"
-    # LambdaCase is to test user-provided lang extensions
-    find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$HSINSPECT imports {} -- -XLambdaCase > {}.$GHC_VERSION.imports.sexp"
-    find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$HSINSPECT imports {} --json -- -XLambdaCase | python -m json.tool --sort-keys > {}.$GHC_VERSION.imports.json"
-    find library -name "*.hs" -print0 | xargs -0 -L1 -I {} sh -c "$HSINSPECT modules {} --json -- -XLambdaCase | python -m json.tool --sort-keys > {}.$GHC_VERSION.modules.json"
-    "$HSINSPECT" packages library --json -- -XLambdaCase | python -m json.tool --sort-keys > library/$GHC_VERSION.packages.json
-    unset GHC_ENVIRONMENT
+    # needs a successful compile for .hi files to be written
+    cabal v2-build -w $GHC_VERSION --constraint="medley -uncompilable"
+    if [ ! -f .ghc.version ] ; then
+        echo "library/.ghc.version was not created, HsInspect.Plugin failed"
+        exit 1
+    fi
+    if [ ! -f library/.ghc.flags ] ; then
+        echo "library/.ghc.flags was not created, HsInspect.Plugin failed"
+        exit 1
+    fi
+    GHC_FLAGS=$(cat library/.ghc.flags)
+    for f in $(find library -name "*.hs") ; do
+        echo "TEST $f"
+        $HSINSPECT imports "$f" -- $GHC_FLAGS > "$f.$GHC_VERSION.imports.sexp"
+        $HSINSPECT imports "$f" --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "$f.$GHC_VERSION.imports.json"
+        $HSINSPECT modules "$f" --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "$f.$GHC_VERSION.modules.json"
+    done
+    $HSINSPECT packages library --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "library/$GHC_VERSION.packages.json"
 done
 
 cd "$SCRIPT_DIR"
 if ! git diff --quiet -- tests ; then
     echo "FAILED"
 fi
+
+# test for exceptions...
+$HSINSPECT --help
+$HSINSPECT --version
