@@ -8,10 +8,9 @@ module Main where
 import           Control.Monad
 import           Control.Monad.IO.Class
 import           Data.Char (isUpper)
-import           Data.List (isPrefixOf)
+import           Data.List (find, isPrefixOf)
 import           DynFlags (parseDynamicFlagsCmdLine, updOptLevel)
 import qualified GHC as GHC
-import           GHC.Paths (libdir)
 import           HsInspect.Imports
 import           HsInspect.Modules
 import           HsInspect.Packages
@@ -51,8 +50,8 @@ main = do
     (putStrLn help) >> exitWith ExitSuccess
   when (elem "--version" args) $
     (putStrLn version) >> exitWith ExitSuccess
-  -- TODO require a -B flag instead of the ghc-paths dependency
-  GHC.runGhc (Just libdir) $ do
+  let libdir = (drop 2) <$> find ("-B" `isPrefixOf`) flags
+  GHC.runGhc libdir $ do
     dflags <- GHC.getSessionDynFlags
     (updOptLevel 0 -> dflags', (GHC.unLoc <$>) -> ghcargs, _) <-
       liftIO $ parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> flags)

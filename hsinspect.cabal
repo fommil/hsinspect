@@ -34,7 +34,6 @@ executable hsinspect
   import:         deps
   hs-source-dirs: exe
   build-depends:
-    , ghc-paths
     , hsinspect
 
   main-is:        Main.hs
