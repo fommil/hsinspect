@@ -20,6 +20,7 @@ import Packages (explicitPackages)
 
 modules :: GHC.GhcMonad m => [String] -> m [Hit]
 modules homeModules = do
+  -- TODO where is base?
   dflags <- GHC.getSessionDynFlags
   let Just dbs = GHC.pkgDatabase dflags
       loaded = Set.fromList . explicitPackages $ GHC.pkgState dflags
