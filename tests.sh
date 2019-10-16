@@ -18,8 +18,9 @@ for t in * ; do
     cabal v2-clean
     rm -rf .ghc.version library/.ghc.flags || true
 
-    # needs a successful compile for .hi files to be written
-    cabal v2-build --constraint="medley -uncompilable"
+    # a successful compile is not necessary for .hi files to be written!
+    # cabal v2-build --constraint="medley -uncompilable"
+    cabal v2-build || true
     if [ ! -f .ghc.version ] ; then
         echo "library/.ghc.version was not created, HsInspect.Plugin failed"
         exit 1
