@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module HsInspect.Packages (packages) where
+module HsInspect.Packages (packages, PkgSummary) where
 
 import           BasicTypes (StringLiteral(..))
 import           Control.Monad (join, void)
@@ -16,11 +16,11 @@ import           Finder (findImportedModule)
 import qualified GHC
 import           HscTypes (FindResult(..))
 import           HsInspect.Sexp
+import           HsInspect.Util
 import           HsInspect.Workarounds
 import           Json
 import           Module (Module(..), ModuleName, moduleNameString, unitIdString)
 import           Packages (PackageState(..))
-import           System.Directory (doesDirectoryExist, listDirectory)
 
 -- Similar to packunused / weeder, but more reliable (and doesn't require a
 -- separate -ddump-minimal-imports pass).
@@ -82,27 +82,6 @@ qModule GHC.ImportDecl{GHC.ideclName, GHC.ideclPkgQual} = Just $
 qModule (GHC.XImportDecl _) = Nothing
 #endif
 
-walk :: FilePath -> IO [FilePath]
-walk dir = do
-  isDir <- doesDirectoryExist dir
-  if isDir
-  then do fs <- listDirectory dir
-          let base = dir <> "/"
-              qfs = (base <>) <$> fs
-          concatMapM walk qfs
-  else pure [dir]
-
--- from extra
-concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
-concatMapM op = foldr f (pure [])
-    where f x xs = do
-            x' <- op x
-            if null x'
-            then xs
-            else do
-              xs' <- xs
-              pure $ x' ++ xs'
-
 data PkgSummary = PkgSummary [GHC.UnitId] [GHC.UnitId]
   deriving (Eq, Ord)
 
@@ -117,4 +96,3 @@ instance ToJson PkgSummary where
     JSObject [ ("used", toJ used)
              , ("unused", toJ unused) ]
     where toJ ids = JSArray $ JSString . unitIdString <$> ids
-

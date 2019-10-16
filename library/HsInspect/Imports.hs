@@ -2,7 +2,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module HsInspect.Imports where
+module HsInspect.Imports
+  ( imports,
+    Qualified,
+  )
+where
 
 import Data.Maybe (fromJust)
 import DynFlags (unsafeGlobalDynFlags)

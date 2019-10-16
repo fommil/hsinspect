@@ -9,6 +9,7 @@
     "HsInspect.Plugin",
     "HsInspect.Search",
     "HsInspect.Sexp",
+    "HsInspect.Util",
     "HsInspect.Workarounds",
     "Medley.Wibble",
     "Medley.Wobble"

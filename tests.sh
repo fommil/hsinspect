@@ -20,7 +20,7 @@ for t in * ; do
 
     # a successful compile is not necessary for .hi files to be written!
     # cabal v2-build --constraint="medley -uncompilable"
-    cabal v2-build || true
+    cabal v2-build 2>/dev/null || true
     if [ ! -f .ghc.version ] ; then
         echo "library/.ghc.version was not created, HsInspect.Plugin failed"
         exit 1
@@ -37,6 +37,8 @@ for t in * ; do
         $HSINSPECT modules "$f" --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "$f.$GHC_VERSION.modules.json"
     done
     $HSINSPECT packages library --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "library/$GHC_VERSION.packages.json"
+    # TODO need a better set of search tests
+    # $HSINSPECT search "foo" --json -- $GHC_FLAGS #| python -m json.tool --sort-keys > "library/$GHC_VERSION.search.foo.json"
 done
 
 cd "$SCRIPT_DIR"

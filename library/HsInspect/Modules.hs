@@ -3,6 +3,7 @@
 -- | Calculate all exposed modules that could be imported.
 module HsInspect.Modules
   ( modules,
+    Hit,
   )
 where
 
