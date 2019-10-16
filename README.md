@@ -48,7 +48,7 @@ The compiler plugin must be installed for every project you plan to inspect:
 1. add a dependency on `hsinspect`
 2. add `-fplugin HsInspect.Plugin` to `ghc-options`
 
-It is possible to enable the plugin on a per-user basis using `-packagedb` and `-packageid`, however that is left as an exercise for people who know what they are doing.
+It is possible to enable the plugin on a per-user basis using `-packagedb` and `-packageid`, however that is left as an exercise for people who know what they are doing. Consider implementing https://github.com/haskell/cabal/issues/2965
 
 Alternatively, you can create a `.ghc.flags` and `.ghc.version` file manually or using the hacks described in https://github.com/haskell/cabal/issues/6203
 
