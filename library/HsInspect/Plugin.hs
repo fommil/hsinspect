@@ -11,15 +11,15 @@ module HsInspect.Plugin
 where
 
 import qualified Config as GHC
-import Control.Monad (when)
-import Control.Monad.IO.Class (liftIO)
-import Data.Foldable (traverse_)
-import Data.List (stripPrefix)
+import           Control.Monad (when)
+import           Control.Monad.IO.Class (liftIO)
+import           Data.Foldable (traverse_)
+import           Data.List (stripPrefix)
 import qualified GHC
 import qualified GhcPlugins as GHC
-import System.Directory (doesDirectoryExist)
-import System.Environment
-import System.IO.Error (catchIOError)
+import           System.Directory (doesDirectoryExist)
+import           System.Environment
+import           System.IO.Error (catchIOError)
 
 plugin :: GHC.Plugin
 plugin =
