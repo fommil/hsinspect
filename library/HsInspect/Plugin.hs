@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | A ghc plugin that creates a .ghc.flags file populated with the flags that
 --   were last used to invoke ghc for some modules, for consumption by
 --   hsinspect.
@@ -22,8 +24,10 @@ import System.IO.Error (catchIOError)
 plugin :: GHC.Plugin
 plugin =
   GHC.defaultPlugin
-    { GHC.installCoreToDos = install,
-      GHC.pluginRecompile = GHC.purePlugin
+    { GHC.installCoreToDos = install
+#if MIN_VERSION_GLASGOW_HASKELL(8,6,0,0)
+    , GHC.pluginRecompile = GHC.purePlugin
+#endif
     }
 
 install :: [GHC.CommandLineOption] -> [GHC.CoreToDo] -> GHC.CoreM [GHC.CoreToDo]
