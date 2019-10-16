@@ -5,13 +5,9 @@ set -e -x -o pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
-if [ -n "$1" ] ; then
-    GHC_VERSION=$1
-else
-    GHC_VERSION=ghc-8.4.4
-fi
-
-HSINSPECT="cabal v2-run -w $GHC_VERSION -v0 hsinspect --"
+# use cabal v2-configure to change ghc version
+HSINSPECT="cabal v2-run -v0 hsinspect --"
+GHC_VERSION=ghc-$(cabal exec ghc -- --numeric-version)
 
 cd tests
 
@@ -23,7 +19,7 @@ for t in * ; do
     rm -rf .ghc.version library/.ghc.flags || true
 
     # needs a successful compile for .hi files to be written
-    cabal v2-build -w $GHC_VERSION --constraint="medley -uncompilable"
+    cabal v2-build --constraint="medley -uncompilable"
     if [ ! -f .ghc.version ] ; then
         echo "library/.ghc.version was not created, HsInspect.Plugin failed"
         exit 1
