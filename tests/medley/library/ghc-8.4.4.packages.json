@@ -1,6 +1,6 @@
 {
     "unused": [
-        "hsinspect-0.0.4-inplace"
+        "hsinspect-0.0.5-inplace"
     ],
     "used": [
         "base",
