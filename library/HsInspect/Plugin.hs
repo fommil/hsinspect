@@ -17,7 +17,7 @@ import           Data.Foldable (traverse_)
 import           Data.List (stripPrefix)
 import qualified GHC
 import qualified GhcPlugins as GHC
-import           System.Directory (doesDirectoryExist)
+import           System.Directory (doesFileExist)
 import           System.Environment
 import           System.IO.Error (catchIOError)
 
@@ -25,7 +25,7 @@ plugin :: GHC.Plugin
 plugin =
   GHC.defaultPlugin
     { GHC.installCoreToDos = install
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(8, 6, 0, 0)
     , GHC.pluginRecompile = GHC.purePlugin
 #endif
     }
@@ -41,23 +41,27 @@ install _ core = do
       -- TODO this currently only supports ghc being called with directories and
       -- home modules, we should also support calling with explicit file names.
       paths = GHC.importPaths dflags
-
-      -- TODO we might want to filter out some include directories, e.g. build tool
-      -- autogen folders.
-      writeGhcFlags path =
-        whenM (doesDirectoryExist path)
-          $ writeFile (path <> "/.ghc.flags") ghcFlags
-
+      writeGhcFlags path = writeDifferent (path <> "/.ghc.flags") ghcFlags
       enable = case GHC.hscTarget dflags of
         GHC.HscInterpreted -> False
         GHC.HscNothing -> False
         _ -> True
 
-  when enable $ liftIO . ignoreIOExceptions $ do
+  when enable $ liftIO $ do
     traverse_ writeGhcFlags paths
-    writeFile ".ghc.version" GHC.cProjectVersion
+    writeDifferent ".ghc.version" GHC.cProjectVersion
 
   pure core
+
+-- only writes out the file when it will result in changes, and silently fails
+-- on exceptions because the plugin should never interrupt normal ghc work.
+writeDifferent :: FilePath -> String -> IO ()
+writeDifferent file content =
+  ignoreIOExceptions
+    $ whenM isDifferent (writeFile file content)
+  where
+    isDifferent =
+      ifM (doesFileExist file) ((content /=) <$> readFile file) (pure True)
 
 -- from Data.List.Extra
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
