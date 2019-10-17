@@ -7,7 +7,8 @@ cd "$SCRIPT_DIR"
 
 # use cabal v2-configure to change ghc version
 HSINSPECT="cabal v2-run -v0 hsinspect --"
-GHC_VERSION=ghc-$(cabal exec ghc -- --numeric-version)
+cabal v2-build --only-dependencies
+GHC_VERSION=ghc-$(cabal v2-exec -v0 ghc -- --numeric-version)
 
 cd tests
 
@@ -22,11 +23,11 @@ for t in * ; do
     # cabal v2-build --constraint="medley -uncompilable"
     cabal v2-build 2>/dev/null || true
     if [ ! -f .ghc.version ] ; then
-        echo "library/.ghc.version was not created, HsInspect.Plugin failed"
+        echo "library/.ghc.version was not created, GhcFlags.Plugin failed"
         exit 1
     fi
     if [ ! -f library/.ghc.flags ] ; then
-        echo "library/.ghc.flags was not created, HsInspect.Plugin failed"
+        echo "library/.ghc.flags was not created, GhcFlags.Plugin failed"
         exit 1
     fi
     GHC_FLAGS=$(cat library/.ghc.flags)

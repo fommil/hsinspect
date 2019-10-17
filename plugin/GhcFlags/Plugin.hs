@@ -1,11 +1,11 @@
 {-# LANGUAGE CPP #-}
 
--- | A ghc plugin that creates a .ghc.flags file populated with the flags that
---   were last used to invoke ghc for some modules, for consumption by
---   hsinspect.
+-- | A ghc plugin that creates `.ghc.flags` files (and `.ghc.version`) populated
+--   with the flags that were last used to invoke ghc for some modules, for
+--   consumption by tools that need to know the build parameters.
 --
 --   https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/extending_ghc.html#compiler-plugins
-module HsInspect.Plugin
+module GhcFlags.Plugin
   ( plugin,
   )
 where
@@ -36,7 +36,7 @@ install _ core = do
   args <- liftIO $ getArgs
 
   -- downstream tools shouldn't use this plugin, or all hell will break loose
-  let ghcFlags = unwords $ replace ["-fplugin", "HsInspect.Plugin"] [] args
+  let ghcFlags = unwords $ replace ["-fplugin", "GhcFlags.Plugin"] [] args
 
       -- TODO this currently only supports ghc being called with directories and
       -- home modules, we should also support calling with explicit file names.

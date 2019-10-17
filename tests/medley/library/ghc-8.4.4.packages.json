@@ -1,6 +1,6 @@
 {
     "unused": [
-        "hsinspect-0.0.6-inplace"
+        "ghcflags-1.0.0-inplace"
     ],
     "used": [
         "base",

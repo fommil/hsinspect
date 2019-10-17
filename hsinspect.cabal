@@ -33,9 +33,7 @@ common deps
 executable hsinspect
   import:         deps
   hs-source-dirs: exe
-  build-depends:
-    , hsinspect
-
+  build-depends:  hsinspect
   main-is:        Main.hs
   ghc-options:    -threaded
 
@@ -48,7 +46,6 @@ library
     HsInspect.Imports
     HsInspect.Modules
     HsInspect.Packages
-    HsInspect.Plugin
     HsInspect.Search
     HsInspect.Sexp
     HsInspect.Util

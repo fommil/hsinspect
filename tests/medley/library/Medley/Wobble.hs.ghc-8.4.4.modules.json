@@ -3,14 +3,7 @@
     "Data.Functor.Contravariant.Compose",
     "Data.Functor.Contravariant.Divisible",
     "Data.Functor.Contravariant.Generic",
-    "HsInspect.Imports",
-    "HsInspect.Modules",
-    "HsInspect.Packages",
-    "HsInspect.Plugin",
-    "HsInspect.Search",
-    "HsInspect.Sexp",
-    "HsInspect.Util",
-    "HsInspect.Workarounds",
+    "GhcFlags.Plugin",
     "Medley.Wibble",
     "Medley.Wobble"
 ]
