@@ -8,9 +8,9 @@ flag uncompilable
   default:     True
 
 flag ghcflags
-  description: Enables invalid code (user input)
+  description: Generate .ghc.flags files during compilation
   manual:      True
-  default:     True
+  default:     False
 
 common deps
   build-depends:    base
@@ -22,15 +22,12 @@ common deps
 
   if flag(ghcflags)
     ghc-options: -fplugin GhcFlags.Plugin
+    build-depends: ghcflags
 
 library
   import:          deps
   hs-source-dirs:  library
   build-depends:   contravariant ^>=1.5.2
-
-  if flag(ghcflags)
-    build-depends: ghcflags
-
   exposed-modules:
     Medley.Wibble
     Medley.Wobble

@@ -2,5 +2,9 @@ packages: ./, plugin, tests/medley
 
 constraints: contravariant -tagged -semigroups -StateVar
 
+package hsinspect
+  flags: +ghcflags
+
 package medley
+  flags: +ghcflags
   tests: True

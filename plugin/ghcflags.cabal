@@ -25,10 +25,6 @@ common deps
     , directory
     , ghc
 
-  --    , containers
-  --    , ghc-boot
-  --    , time
-
   ghc-options:      -Wall -Werror=missing-home-modules
   default-language: Haskell2010
 
