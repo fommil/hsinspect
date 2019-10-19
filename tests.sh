@@ -18,16 +18,17 @@ for t in * ; do
 
     cabal v2-clean
     rm -rf .ghc.version library/.ghc.flags || true
+    touch .ghc.version library/.ghc.flags # tests that overwriting works
 
     # a successful compile is not necessary for .hi files to be written!
     # cabal v2-build --constraint="medley -uncompilable"
     cabal v2-build 2>/dev/null || true
-    if [ ! -f .ghc.version ] ; then
-        echo "library/.ghc.version was not created, GhcFlags.Plugin failed"
+    if [ ! -s .ghc.version ] ; then
+        echo ".ghc.version was not overwritten, GhcFlags.Plugin failed"
         exit 1
     fi
-    if [ ! -f library/.ghc.flags ] ; then
-        echo "library/.ghc.flags was not created, GhcFlags.Plugin failed"
+    if [ ! -s library/.ghc.flags ] ; then
+        echo "library/.ghc.flags was not overwritten, GhcFlags.Plugin failed"
         exit 1
     fi
     GHC_FLAGS=$(cat library/.ghc.flags)
@@ -35,11 +36,9 @@ for t in * ; do
         echo "TEST $f"
         $HSINSPECT imports "$f" -- $GHC_FLAGS > "$f.$GHC_VERSION.imports.sexp"
         $HSINSPECT imports "$f" --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "$f.$GHC_VERSION.imports.json"
-        $HSINSPECT modules "$f" --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "$f.$GHC_VERSION.modules.json"
     done
     $HSINSPECT packages library --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "library/$GHC_VERSION.packages.json"
-    # TODO need a better set of search tests
-    # $HSINSPECT search "foo" --json -- $GHC_FLAGS #| python -m json.tool --sort-keys > "library/$GHC_VERSION.search.foo.json"
+    $HSINSPECT index --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "library/$GHC_VERSION.index.json"
 done
 
 cd "$SCRIPT_DIR"

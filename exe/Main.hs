@@ -11,10 +11,9 @@ import           Data.Char (isUpper)
 import           Data.List (find, isPrefixOf)
 import           DynFlags (parseDynamicFlagsCmdLine, updOptLevel)
 import qualified GHC as GHC
+import           HsInspect.Index
 import           HsInspect.Imports
-import           HsInspect.Modules
 import           HsInspect.Packages
-import           HsInspect.Search
 import           HsInspect.Sexp as S
 import           Json
 import           Outputable (defaultUserStyle, initSDocContext, runSDoc)
@@ -35,9 +34,8 @@ help =
   "  imports /path/to/file.hs - list the qualified imports for the file\n" ++
   "                             along with their locally qualified (and\n" ++
   "                             unqualified) names.\n" ++
-  "  modules /path/to/file.hs - list all modules that could be imported by file.\n" ++
-  "  packages /path/to/dir    - list all packages that are imported by this dir.\n" ++
-  "  search  /path/to/file.hs QUERY - Hoogle query within the file's context.\n "
+  "  index                    - list all dependency packages, modules, terms and types.\n" ++
+  "  packages /path/to/dir    - list all packages that are referenced by sources in this dir.\n"
 
 -- Possible backends:
 --
@@ -73,14 +71,11 @@ main = do
       "imports" : file : rest -> do
         quals <- imports file
         respond rest quals
-      "modules" : rest -> do
-        hits <- modules homeModules
+      "index" : rest -> do
+        hits <- index
         respond rest hits
       "packages" : dir : rest -> do
         hits <- packages dir
-        respond rest hits
-      "search" : query : rest -> do
-        hits <- search query
         respond rest hits
       _ ->
         liftIO $ error "invalid parameters"

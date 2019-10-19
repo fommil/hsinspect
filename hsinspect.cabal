@@ -34,8 +34,9 @@ common deps
 
   ghc-options:      -Wall -Werror=missing-home-modules
   default-language: Haskell2010
+
   if flag(ghcflags)
-    ghc-options: -fplugin GhcFlags.Plugin
+    ghc-options:   -fplugin GhcFlags.Plugin
     build-depends: ghcflags
 
 executable hsinspect
@@ -52,9 +53,8 @@ library
   -- cabal-fmt: expand library
   exposed-modules:
     HsInspect.Imports
-    HsInspect.Modules
+    HsInspect.Index
     HsInspect.Packages
-    HsInspect.Search
     HsInspect.Sexp
     HsInspect.Util
     HsInspect.Workarounds

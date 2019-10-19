@@ -1,9 +1,0 @@
-[
-    "Data.Functor.Contravariant",
-    "Data.Functor.Contravariant.Compose",
-    "Data.Functor.Contravariant.Divisible",
-    "Data.Functor.Contravariant.Generic",
-    "GhcFlags.Plugin",
-    "Medley.Wibble",
-    "Medley.Wobble"
-]

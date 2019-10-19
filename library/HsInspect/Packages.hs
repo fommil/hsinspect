@@ -25,7 +25,7 @@ import           Packages (PackageState(..))
 -- Similar to packunused / weeder, but more reliable (and doesn't require a
 -- separate -ddump-minimal-imports pass).
 --
--- TODO support list of dirs not just one
+-- TODO get the dirs from the dynflags not the user
 packages :: GHC.GhcMonad m => FilePath -> m PkgSummary
 packages dir = do
   -- We load all .hs files in dir, assuming they are the sources of the home

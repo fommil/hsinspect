@@ -11,6 +11,7 @@ module GhcFlags.Plugin
 where
 
 import qualified Config as GHC
+import           Control.Exception (onException)
 import           Control.Monad (when)
 import           Control.Monad.IO.Class (liftIO)
 import           Data.Foldable (traverse_)
@@ -53,6 +54,9 @@ install _ core = do
 
   pure core
 
+-- TODO should do the write atomically, this is prone to a lot of crosstalk and
+-- then all processes fail.
+--
 -- only writes out the file when it will result in changes, and silently fails
 -- on exceptions because the plugin should never interrupt normal ghc work.
 writeDifferent :: FilePath -> String -> IO ()
@@ -61,7 +65,9 @@ writeDifferent file content =
     $ whenM isDifferent (writeFile file content)
   where
     isDifferent =
-      ifM (doesFileExist file) ((content /=) <$> readFile file) (pure True)
+      onException
+        (ifM (doesFileExist file) ((content /=) <$> readFile file) (pure True))
+        (pure True)
 
 -- from Data.List.Extra
 replace :: Eq a => [a] -> [a] -> [a] -> [a]

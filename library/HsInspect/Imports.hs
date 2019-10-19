@@ -62,13 +62,17 @@ describe GRE {gre_name, gre_imp} = describe' <$> gre_imp
        in Qualified ln lqn fqn
 
 -- Note that `nameSrcLoc gre_name` is empty
--- TODO what other information is available?
+-- TODO unitid (can be used to lookup source code)
 -- TODO "and originally defined" / ppr_defn_site
+
+-- 1. local name
+-- 2. locally qualified name
+-- 3. fully qualified name
 data Qualified
   = Qualified
-      (Maybe String) -- ^^ local name
-      (Maybe String) -- ^^ locally qualifed name
-      String -- ^^ fully qualified name
+      (Maybe String)
+      (Maybe String)
+      String
   deriving (Eq, Show)
 
 instance ToSexp Qualified where

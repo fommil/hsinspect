@@ -7,13 +7,11 @@ The goal is to provide a very lightweight (zero dependency) command line interfa
 ## Features
 
 - [x] obtain ghc flags
-- [x] list all imported symbols in scope
-- [x] list all modules that may be imported
-- [x] list all used and unused packages
-- [ ] Hoogle-style search of the project dependency graph
-- [ ] source location for symbol
-- [ ] documentation for symbol
-- [ ] calculate packages that are actively used by sources in a folder
+- [x] list imported symbols in scope
+- [x] list packages, modules, names and types
+- [x] list used and unused packages
+- [ ] source location (maybe best for downstream reconciliation?)
+- [ ] list all symbol uses
 
 ## Contributing
 
@@ -48,7 +46,7 @@ The compiler plugin must be installed for every project you plan to inspect:
 1. add a dependency on `ghcflags`
 2. add `-fplugin GhcFlags.Plugin` to `ghc-options`
 
-It is possible to make this opt-in by users
+This can be hidden behind a flag (e.g. for libraries that don't wish to publish a dependency):
 
 ```
 flag ghcflags
@@ -61,7 +59,9 @@ if flag(ghcflags)
   build-depends: ghcflags
 ```
 
-It is possible to enable the plugin on a per-user basis using `-packagedb` and `-packageid`, however that is left as an exercise for people who know what they are doing. Consider implementing https://github.com/haskell/cabal/issues/2965
+Consider implementing https://github.com/haskell/cabal/issues/2965 to make this easier.
+
+It is possible to enable the plugin on a per-user basis using `-packagedb` and `-packageid`, however that is left as an exercise for people who know what they are doing.
 
 Alternatively, you can create a `.ghc.flags` and `.ghc.version` file manually or using the hacks described in https://github.com/haskell/cabal/issues/6203
 
@@ -83,3 +83,9 @@ for V in 8.4.4 8.6.5 ; do
   mv -f ~/.cabal/bin/hsinspect ~/.cabal/bin/hsinspect-ghc-$V
 done
 -->
+
+### Acknowledgements
+
+Thanks to the ghc authors who have made the compiler internals available through an API.
+
+Special thanks to Rahul Muttinieni who has been my guide to that API.
