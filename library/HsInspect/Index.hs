@@ -5,7 +5,7 @@
 -- | Dumps an index of all terms and their types
 module HsInspect.Index
   ( index,
-    Hit,
+    PackageEntries,
   )
 where
 
@@ -18,7 +18,7 @@ import BinIface
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.List (isSuffixOf)
-import Data.Maybe (maybeToList)
+import Data.Maybe (catMaybes, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified GHC
@@ -31,30 +31,32 @@ import Json
 import Module (Module (..), moduleNameString, unitIdString)
 import Outputable (showPpr)
 import PackageConfig
-import Packages (explicitPackages, lookupPackage)
 --import System.IO (hPutStrLn, stderr)
+import PackageConfig (packageConfigId)
+import Packages (explicitPackages, lookupPackage)
 import TcEnv (tcLookup)
 import TcRnMonad (initTcInteractive)
 import qualified TcRnTypes as GHC
 
-index :: GHC.GhcMonad m => m [Hit]
+index :: GHC.GhcMonad m => m [PackageEntries]
 index = do
   -- TODO the home package
   dflags <- GHC.getSessionDynFlags
   let explicit = explicitPackages $ GHC.pkgState dflags
       pkgcfgs = maybeToList . lookupPackage dflags =<< explicit
-  join <$> traverse getSymbols pkgcfgs
+  traverse getSymbols pkgcfgs
 
 -- TODO Maybe haddock-html
 -- TODO Maybe source definition (or should we leave source resolution to downstream?)
-getSymbols :: GHC.GhcMonad m => PackageConfig -> m [Hit]
+getSymbols :: GHC.GhcMonad m => PackageConfig -> m PackageEntries
 getSymbols pkg = do
   let findHis dir = filter (".hi" `isSuffixOf`) <$> liftIO (walk dir)
       exposed = Set.fromList $ fst <$> exposedModules pkg
+      unitid = packageConfigId pkg
   his <- join <$> traverse findHis (importDirs pkg)
-  join <$> traverse (hiToSymbols exposed) his
+  PackageEntries unitid . catMaybes <$> traverse (hiToSymbols exposed) his
 
-hiToSymbols :: GHC.GhcMonad m => Set GHC.ModuleName -> FilePath -> m [Hit]
+hiToSymbols :: GHC.GhcMonad m => Set GHC.ModuleName -> FilePath -> m (Maybe ModuleEntries)
 hiToSymbols exposed hi = do
   env <- GHC.getSession
   dflags <- GHC.getSessionDynFlags
@@ -63,40 +65,75 @@ hiToSymbols exposed hi = do
     liftIO . initTcInteractive env $ do
       iface <- readBinIface IgnoreHiWay QuietBinIFaceReading hi
       let m = mi_module iface
+          modName = moduleName m
       if not $ Set.member (GHC.moduleName m) exposed
-        then pure []
+        then pure Nothing
         else do
           let thing (Avail name) = traverse tcLookup [name]
               -- TODO the fields in AvailTC
               thing (AvailTC name members _) = traverse tcLookup (name : members)
-          things <- join <$> traverse thing (mi_exports iface)
-          pure $ (\t -> maybeToList $ (uncurry $ Hit m) <$> tyrender dflags t) =<< things
-  pure $ concat hits
 
--- TODO normalise the type string to make it easier for downstream tools to perform searches
-tyrender :: GHC.DynFlags -> GHC.TcTyThing -> Maybe (String, String)
-tyrender dflags (GHC.AGlobal (GHC.AnId var)) = Just (showPpr dflags $ GHC.idName var, showPpr dflags $ GHC.idType var)
+          things <- join <$> traverse thing (mi_exports iface)
+
+          -- TODO refactor this code to return the Module and TcTyThing and
+          -- do the conversion to Entry in the caller.
+          pure . Just . ModuleEntries modName . catMaybes $ (tyrender dflags) <$> things
+  pure $ join hits
+
+tyrender :: GHC.DynFlags -> GHC.TcTyThing -> Maybe Entry
+tyrender dflags (GHC.AGlobal (GHC.AnId var)) =
+  Just
+    $ Entry (showPpr dflags $ GHC.idName var)
+        (showPpr dflags $ GHC.idType var)
+-- TODO investigate what we're skipping
 tyrender _ _ = Nothing
 
--- TODO investigate what we're skipping
+-- TODO normalise the type string to make it easier for downstream tools to perform searches
+-- TODO note if this is the original definition point (vs a re-export)
+data Entry = Entry String String
 
--- TODO optimise the output by grouping by unitid / module
-data Hit = Hit GHC.Module String String
+data ModuleEntries = ModuleEntries GHC.ModuleName [Entry]
 
-instance ToSexp Hit where
-  toSexp (Hit modl name typ) =
+data PackageEntries = PackageEntries GHC.UnitId [ModuleEntries]
+
+instance ToSexp Entry where
+  toSexp (Entry term typ) =
     alist
-      [ ("module", SexpString . moduleNameString . moduleName $ modl),
-        ("unitid", SexpString . unitIdString . moduleUnitId $ modl),
-        ("name", SexpString name),
+      [ ("name", SexpString term),
         ("type", SexpString typ)
       ]
 
-instance ToJson Hit where
-  json (Hit modl name typ) =
+instance ToSexp ModuleEntries where
+  toSexp (ModuleEntries modl entries) =
+    alist
+      [ ("module", SexpString . moduleNameString $ modl),
+        ("ids", toSexp entries)
+      ]
+
+instance ToSexp PackageEntries where
+  toSexp (PackageEntries pkg modules) =
+    alist
+      [ ("unitid", SexpString . unitIdString $ pkg),
+        ("modules", toSexp modules)
+      ]
+
+instance ToJson Entry where
+  json (Entry term typ) =
     JSObject
-      [ ("module", JSString . moduleNameString . moduleName $ modl),
-        ("unitid", JSString . unitIdString . moduleUnitId $ modl),
-        ("name", JSString name),
+      [ ("name", JSString term),
         ("type", JSString typ)
+      ]
+
+instance ToJson ModuleEntries where
+  json (ModuleEntries modl entries) =
+    JSObject
+      [ ("module", JSString . moduleNameString $ modl),
+        ("ids", JSArray $ json <$> entries)
+      ]
+
+instance ToJson PackageEntries where
+  json (PackageEntries pkg modules) =
+    JSObject
+      [ ("unitid", JSString . unitIdString $ pkg),
+        ("modules", JSArray $ json <$> modules)
       ]
