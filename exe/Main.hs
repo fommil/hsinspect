@@ -5,20 +5,20 @@
 
 module Main where
 
-import           Control.Monad
-import           Control.Monad.IO.Class
-import           Data.Char (isUpper)
-import           Data.List (find, isPrefixOf)
-import           DynFlags (parseDynamicFlagsCmdLine, updOptLevel)
+import Control.Monad
+import Control.Monad.IO.Class
+import Data.Char (isUpper)
+import Data.List (find, isPrefixOf)
+import DynFlags (parseDynamicFlagsCmdLine, updOptLevel)
 import qualified GHC as GHC
-import           HsInspect.Index
-import           HsInspect.Imports
-import           HsInspect.Packages
-import           HsInspect.Sexp as S
-import           Json
-import           Outputable (defaultUserStyle, initSDocContext, runSDoc)
-import           System.Environment (getArgs)
-import           System.Exit
+import HsInspect.Imports
+import HsInspect.Index
+import HsInspect.Packages
+import HsInspect.Sexp as S
+import Json
+import Outputable (defaultUserStyle, initSDocContext, runSDoc)
+import System.Environment (getArgs)
+import System.Exit
 
 version :: String
 #ifdef CURRENT_PACKAGE_VERSION

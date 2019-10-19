@@ -3,5 +3,6 @@ steps:
   - language_pragmas:
       align: false
   - imports:
+      align: none
       pad_module_names: false
       separate_lists: false

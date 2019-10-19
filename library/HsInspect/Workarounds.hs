@@ -4,27 +4,27 @@
 
 module HsInspect.Workarounds where
 
-import           Control.Monad
-import           Control.Monad.IO.Class
-import           Data.List (delete, intercalate, isSuffixOf)
-import           Data.Set (Set)
+import Control.Monad
+import Control.Monad.IO.Class
+import Data.List (delete, intercalate, isSuffixOf)
+import Data.Set (Set)
 import qualified Data.Set as Set
-import           DriverPhases (HscSource(..), Phase(..))
-import           DriverPipeline (preprocess)
-import           DynFlags (parseDynamicFilePragma)
-import           FastString
+import DriverPhases (HscSource(..), Phase(..))
+import DriverPipeline (preprocess)
+import DynFlags (parseDynamicFilePragma)
+import FastString
 import qualified GHC as GHC
-import           HeaderInfo (getOptions)
-import           HscTypes (Target(..), TargetId(..))
-import           HsImpExp (ImportDecl(..))
-import           Lexer
-import           Outputable (showPpr)
-import           Parser (parseHeader)
-import           RdrName (GlobalRdrEnv)
-import           SrcLoc
-import           StringBuffer
-import           System.Directory (getModificationTime, removeFile)
-import           TcRnTypes (tcg_rdr_env)
+import HeaderInfo (getOptions)
+import HscTypes (Target(..), TargetId(..))
+import HsImpExp (ImportDecl(..))
+import Lexer
+import Outputable (showPpr)
+import Parser (parseHeader)
+import RdrName (GlobalRdrEnv)
+import SrcLoc
+import StringBuffer
+import System.Directory (getModificationTime, removeFile)
+import TcRnTypes (tcg_rdr_env)
 
 -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
 importsOnly :: GHC.GhcMonad m => Set GHC.ModuleName -> FilePath -> m (Maybe GHC.ModuleName, Target)

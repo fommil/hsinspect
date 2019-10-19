@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | A ghc plugin that creates `.ghc.flags` files (and `.ghc.version`) populated
 --   with the flags that were last used to invoke ghc for some modules, for
@@ -11,16 +12,19 @@ module GhcFlags.Plugin
 where
 
 import qualified Config as GHC
-import           Control.Exception (onException)
-import           Control.Monad (when)
-import           Control.Monad.IO.Class (liftIO)
-import           Data.Foldable (traverse_)
-import           Data.List (stripPrefix)
+import Control.Exception (finally, onException)
+import Control.Monad (unless, when)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Foldable (traverse_)
+import Data.IORef
+import Data.List (stripPrefix)
+import Data.Time.Clock (diffTimeToPicoseconds, getCurrentTime, utctDayTime)
 import qualified GHC
 import qualified GhcPlugins as GHC
-import           System.Directory (doesFileExist)
-import           System.Environment
-import           System.IO.Error (catchIOError)
+import System.Directory (doesFileExist, removeFile, renameFile)
+import System.Environment
+import System.IO.Error (catchIOError)
+import System.IO.Unsafe (unsafePerformIO)
 
 plugin :: GHC.Plugin
 plugin =
@@ -31,16 +35,31 @@ plugin =
 #endif
     }
 
+-- Only run "write" once per process, unfortunately there is no other way to
+-- inject an IORef except to use Unsafe.
+lock :: IORef Bool
+lock = unsafePerformIO $ newIORef False
+
 install :: [GHC.CommandLineOption] -> [GHC.CoreToDo] -> GHC.CoreM [GHC.CoreToDo]
 install _ core = do
+  written <- liftIO $ atomicModifyIORef' lock (True,)
+  unless written write
+  pure core
+
+-- TODO this only supports ghc being called with directories and home modules.
+-- That means we don't support incremental compilation where ghc is called with
+-- explicit filenames and dependencies. There are cases where the .ghc.flags may
+-- get out of date, e.g. adding / removing home modules. To handle those cases
+-- we need to detect them and write to a different (per-file) .ghc.flags
+-- location. Text editors need to be aware of both kinds of ghc flags files and
+-- use the most recent.
+write :: (MonadIO m, GHC.HasDynFlags m) => m ()
+write = do
   dflags <- GHC.getDynFlags
   args <- liftIO $ getArgs
 
   -- downstream tools shouldn't use this plugin, or all hell will break loose
   let ghcFlags = unwords $ replace ["-fplugin", "GhcFlags.Plugin"] [] args
-
-      -- TODO this currently only supports ghc being called with directories and
-      -- home modules, we should also support calling with explicit file names.
       paths = GHC.importPaths dflags
       writeGhcFlags path = writeDifferent (path <> "/.ghc.flags") ghcFlags
       enable = case GHC.hscTarget dflags of
@@ -52,17 +71,19 @@ install _ core = do
     traverse_ writeGhcFlags paths
     writeDifferent ".ghc.version" GHC.cProjectVersion
 
-  pure core
-
--- TODO should do the write atomically, this is prone to a lot of crosstalk and
--- then all processes fail.
---
--- only writes out the file when it will result in changes, and silently fails
--- on exceptions because the plugin should never interrupt normal ghc work.
+-- Only writes out the file when it will result in changes, and silently fails
+-- on exceptions because the plugin should never interrupt normal ghc work. The
+-- write is done atomically (via a temp file) otherwise it is prone to a lot of
+-- crosstalk and then all writers fail to update the file.
 writeDifferent :: FilePath -> String -> IO ()
 writeDifferent file content =
-  ignoreIOExceptions
-    $ whenM isDifferent (writeFile file content)
+  ignoreIOExceptions . whenM isDifferent $ do
+    time <- getCurrentTime
+    let hash = diffTimeToPicoseconds . utctDayTime $ time
+        tmp = file <> "." <> show hash
+    finally
+      (writeFile tmp content >> renameFile tmp file)
+      (removeFile tmp)
   where
     isDifferent =
       onException

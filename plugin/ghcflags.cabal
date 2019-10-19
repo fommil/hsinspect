@@ -24,6 +24,7 @@ common deps
     , base       >=4.11 && <5
     , directory
     , ghc
+    , time
 
   ghc-options:      -Wall -Werror=missing-home-modules
   default-language: Haskell2010

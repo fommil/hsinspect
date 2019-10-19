@@ -5,22 +5,22 @@
 
 module HsInspect.Packages (packages, PkgSummary) where
 
-import           BasicTypes (StringLiteral(..))
-import           Control.Monad (join, void)
-import           Control.Monad.IO.Class (liftIO)
-import           Data.List (isSuffixOf, nub, sort, (\\))
-import           Data.Maybe (catMaybes)
+import BasicTypes (StringLiteral(..))
+import Control.Monad (join, void)
+import Control.Monad.IO.Class (liftIO)
+import Data.List (isSuffixOf, nub, sort, (\\))
+import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
-import           FastString
-import           Finder (findImportedModule)
+import FastString
+import Finder (findImportedModule)
 import qualified GHC
-import           HscTypes (FindResult(..))
-import           HsInspect.Sexp
-import           HsInspect.Util
-import           HsInspect.Workarounds
-import           Json
-import           Module (Module(..), ModuleName, moduleNameString, unitIdString)
-import           Packages (PackageState(..))
+import HscTypes (FindResult(..))
+import HsInspect.Sexp
+import HsInspect.Util
+import HsInspect.Workarounds
+import Json
+import Module (Module(..), ModuleName, moduleNameString, unitIdString)
+import Packages (PackageState(..))
 
 -- Similar to packunused / weeder, but more reliable (and doesn't require a
 -- separate -ddump-minimal-imports pass).
