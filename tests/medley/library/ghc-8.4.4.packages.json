@@ -1,6 +1,6 @@
 {
     "unused": [
-        "ghcflags-1.0.1-inplace"
+        "ghcflags-1.0.2-inplace"
     ],
     "used": [
         "base",

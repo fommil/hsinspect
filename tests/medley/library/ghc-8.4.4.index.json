@@ -25307,6 +25307,6 @@
                 "module": "GhcFlags.Plugin"
             }
         ],
-        "unitid": "ghcflags-1.0.1-inplace"
+        "unitid": "ghcflags-1.0.2-inplace"
     }
 ]
