@@ -40,12 +40,7 @@ However, LSP servers come with a large cost: they have a lifecycle that must be 
 
 ## Installation
 
-### Plugin
-
-The compiler plugin must be installed for every project you plan to inspect:
-
-1. add a dependency on `ghcflags`
-2. add `-fplugin GhcFlags.Plugin` to `ghc-options`
+The compiler plugin and command line tool must be installed for every project you plan to inspect.
 
 This can be hidden behind a flag (e.g. for libraries that don't wish to publish a dependency):
 
@@ -56,8 +51,9 @@ flag ghcflags
   default:     False
 
 if flag(ghcflags)
-  ghc-options: -fplugin GhcFlags.Plugin
+  build-tool-depends: hsinspect:hsinspect
   build-depends: ghcflags
+  ghc-options: -fplugin GhcFlags.Plugin
 ```
 
 Consider implementing https://github.com/haskell/cabal/issues/2965 to make this easier.
@@ -65,25 +61,6 @@ Consider implementing https://github.com/haskell/cabal/issues/2965 to make this 
 It is possible to enable the plugin on a per-user basis using `-packagedb` and `-packageid`, however that is left as an exercise for people who know what they are doing.
 
 Alternatively, you can create a `.ghc.flags` and `.ghc.version` file manually or using the hacks described in https://github.com/haskell/cabal/issues/6203
-
-### Command Line Tool
-
-You must install `hsinspect` for every version of `ghc` that you plan to use, e.g.
-
-```
-rm -f ~/.cabal/bin/hsinspect
-for V in 8.4.4 8.6.5 ; do
-  cabal v2-install hsinspect -w ghc-$V -O2 &&
-  mv -f ~/.cabal/bin/hsinspect ~/.cabal/bin/hsinspect-ghc-$V
-done
-```
-
-<!--
-for V in 8.4.4 8.6.5 ; do
-  cabal v2-install exe:hsinspect -w ghc-$V -O2 &&
-  mv -f ~/.cabal/bin/hsinspect ~/.cabal/bin/hsinspect-ghc-$V
-done
--->
 
 ### Acknowledgements
 
