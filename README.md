@@ -12,7 +12,7 @@ The goal is to provide a very lightweight (zero dependency) command line interfa
 - [x] list used and unused packages
 - [ ] source location (maybe best for downstream reconciliation?)
 - [ ] list all symbol uses
-- [ ] type holes
+- [ ] [type holes](https://github.com/ghc-proposals/ghc-proposals/pull/280)
 
 ## Contributing
 
