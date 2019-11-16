@@ -1,6 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ViewPatterns #-}
 
 -- | Dumps an index of all terms and their types
 module HsInspect.Index
@@ -9,12 +8,8 @@ module HsInspect.Index
   )
 where
 
-import Avail (AvailInfo (..))
-import BinIface
-  ( CheckHiWay (..),
-    TraceBinIFaceReading (..),
-    readBinIface,
-  )
+import Avail (AvailInfo(..))
+import BinIface (CheckHiWay(..), TraceBinIFaceReading(..), readBinIface)
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.List (isSuffixOf)
@@ -23,12 +18,12 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified GHC
 import GHC.PackageDb
+import HscTypes (ModIface(..))
 import HsInspect.Sexp
 import HsInspect.Util
-import HscTypes (ModIface (..))
 import qualified Id as GHC
 import Json
-import Module (Module (..), moduleNameString, unitIdString)
+import Module (Module(..), moduleNameString, unitIdString)
 import Outputable (showPpr)
 import PackageConfig
 --import System.IO (hPutStrLn, stderr)

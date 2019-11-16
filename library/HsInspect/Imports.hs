@@ -11,17 +11,13 @@ where
 import Data.Maybe (fromJust)
 import DynFlags (unsafeGlobalDynFlags)
 import qualified GHC as GHC
+import HscTypes (TargetId(..))
 import HsInspect.Sexp
 import HsInspect.Workarounds
-import HscTypes (TargetId (..))
 import Json
 import Outputable (Outputable, showPpr)
-import RdrName
-  ( GlobalRdrElt (..),
-    ImpDeclSpec (..),
-    ImportSpec (..),
-    globalRdrEnvElts,
-  )
+import RdrName (GlobalRdrElt(..), ImpDeclSpec(..), ImportSpec(..),
+                globalRdrEnvElts)
 
 imports :: GHC.GhcMonad m => FilePath -> m [Qualified]
 imports file = do
