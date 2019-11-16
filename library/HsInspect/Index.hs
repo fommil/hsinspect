@@ -49,30 +49,29 @@ getSymbols pkg = do
       exposed = Set.fromList $ fst <$> exposedModules pkg
       unitid = packageConfigId pkg
   his <- join <$> traverse findHis (importDirs pkg)
-  PackageEntries unitid . catMaybes <$> traverse (hiToSymbols exposed) his
+  dflags <- GHC.getSessionDynFlags
+  symbols <- catMaybes <$> traverse (hiToSymbols exposed) his
+  let entries = uncurry mkEntries <$> symbols
+      mkEntries m things = ModuleEntries (moduleName m) (renderThings things)
+      renderThings things = catMaybes $ (tyrender dflags) <$> things
+  pure $ PackageEntries unitid entries
 
-hiToSymbols :: GHC.GhcMonad m => Set GHC.ModuleName -> FilePath -> m (Maybe ModuleEntries)
+hiToSymbols :: GHC.GhcMonad m => Set GHC.ModuleName -> FilePath -> m (Maybe (GHC.Module, [GHC.TcTyThing]))
 hiToSymbols exposed hi = do
   env <- GHC.getSession
-  dflags <- GHC.getSessionDynFlags
   (_, hits) <-
     -- TODO use initTc instead of initTcInteractive
     liftIO . initTcInteractive env $ do
       iface <- readBinIface IgnoreHiWay QuietBinIFaceReading hi
       let m = mi_module iface
-          modName = moduleName m
       if not $ Set.member (GHC.moduleName m) exposed
         then pure Nothing
         else do
           let thing (Avail name) = traverse tcLookup [name]
               -- TODO the fields in AvailTC
               thing (AvailTC name members _) = traverse tcLookup (name : members)
-
-          things <- join <$> traverse thing (mi_exports iface)
-
-          -- TODO refactor this code to return the Module and TcTyThing and
-          -- do the conversion to Entry in the caller.
-          pure . Just . ModuleEntries modName . catMaybes $ (tyrender dflags) <$> things
+          things <- traverse thing (mi_exports iface)
+          pure . Just $ (m, join things)
   pure $ join hits
 
 tyrender :: GHC.DynFlags -> GHC.TcTyThing -> Maybe Entry
