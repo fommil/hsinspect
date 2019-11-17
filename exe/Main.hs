@@ -5,6 +5,7 @@
 
 module Main where
 
+import qualified Config as GHC
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Char (isUpper)
@@ -29,7 +30,7 @@ version = "unknown"
 
 help :: String
 help =
-  "hsinspect command ARGS [--json|help|version] -- [ghcflags]\n\n" ++
+  "hsinspect command ARGS [--json|help|version|ghc-version] -- [ghcflags]\n\n" ++
   "  `command ARGS' can be:\n\n" ++
   "  imports /path/to/file.hs - list the qualified imports for the file\n" ++
   "                             along with their locally qualified (and\n" ++
@@ -48,6 +49,8 @@ main = do
     (putStrLn help) >> exitWith ExitSuccess
   when (elem "--version" args) $
     (putStrLn version) >> exitWith ExitSuccess
+  when (elem "--ghc-version" args) $
+    (putStrLn GHC.cProjectVersion) >> exitWith ExitSuccess
   let libdir = (drop 2) <$> find ("-B" `isPrefixOf`) flags
   GHC.runGhc libdir $ do
     dflags <- GHC.getSessionDynFlags
