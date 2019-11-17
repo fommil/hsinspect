@@ -17,16 +17,12 @@ for t in * ; do
     cd "$SCRIPT_DIR/tests/$t"
 
     cabal v2-clean
-    rm -rf .ghc.version library/.ghc.flags || true
-    touch .ghc.version library/.ghc.flags # tests that overwriting works
+    rm -rf library/.ghc.flags || true
+    touch library/.ghc.flags # tests that overwriting works
 
     # a successful compile is not necessary for .hi files to be written!
     # cabal v2-build --constraint="medley -uncompilable"
     cabal v2-build 2>/dev/null || true
-    if [ ! -s .ghc.version ] ; then
-        echo ".ghc.version was not overwritten, GhcFlags.Plugin failed"
-        exit 1
-    fi
     if [ ! -s library/.ghc.flags ] ; then
         echo "library/.ghc.flags was not overwritten, GhcFlags.Plugin failed"
         exit 1

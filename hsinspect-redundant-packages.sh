@@ -2,7 +2,7 @@
 
 # List all redundant packages in this project.
 
-# To be run after compiling the project and having generated .ghc.version / .ghc.flags files.
+# To be run after compiling the project and having generated .ghc.flags files.
 
 # Known caveats:
 #
@@ -11,14 +11,9 @@
 # 3. directories containing multiple Main will fail
 # 4. files that don't declare a module name will be ignored (e.g. test runners)
 
-if [ ! -f .ghc.version ] ; then
-    echo ".ghc.version must exist"
-    exit 1
-fi
-
 BASE=$PWD
 
-HSINSPECT=hsinspect-ghc-$(cat .ghc.version)
+HSINSPECT=hsinspect
 
 for P in $(find . -path ./dist-newstyle -prune -o -name "*.cabal" -print) ; do
     cd "$BASE"

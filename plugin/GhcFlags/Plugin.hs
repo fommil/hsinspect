@@ -1,9 +1,9 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TupleSections #-}
 
--- | A ghc plugin that creates `.ghc.flags` files (and `.ghc.version`) populated
---   with the flags that were last used to invoke ghc for some modules, for
---   consumption by tools that need to know the build parameters.
+-- | A ghc plugin that creates `.ghc.flags` files populated with the flags that
+--   were last used to invoke ghc for some modules, for consumption by tools
+--   that need to know the build parameters.
 --
 --   https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/extending_ghc.html#compiler-plugins
 module GhcFlags.Plugin
@@ -69,7 +69,6 @@ write = do
 
   when enable $ liftIO $ do
     traverse_ writeGhcFlags paths
-    writeDifferent ".ghc.version" GHC.cProjectVersion
 
 -- Only writes out the file when it will result in changes, and silently fails
 -- on exceptions because the plugin should never interrupt normal ghc work. The

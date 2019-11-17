@@ -11,7 +11,7 @@ bug-reports:   https://gitlab.com/tseenshe/hsinspect/merge_requests
 tested-with:   GHC ^>=8.4.4 || ^>=8.6.5
 category:      Building
 description:
-  Generate @.ghc.flags@ and @.ghc.version@ files during compilation
+  Generate @.ghc.flags@ files during compilation
 
 source-repository head
   type:     git
