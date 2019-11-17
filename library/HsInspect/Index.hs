@@ -1,5 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- | Dumps an index of all terms and their types
 module HsInspect.Index
@@ -10,53 +12,82 @@ where
 
 import Avail (AvailInfo(..))
 import BinIface (CheckHiWay(..), TraceBinIFaceReading(..), readBinIface)
+import qualified ConLike as GHC
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.List (isSuffixOf)
 import Data.Maybe (catMaybes, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified DataCon as GHC
+import qualified DynFlags as GHC
 import qualified GHC
 import GHC.PackageDb
 import HscTypes (ModIface(..))
+import HsInspect.Json ()
 import HsInspect.Sexp
 import HsInspect.Util
 import qualified Id as GHC
 import Json
 import Module (Module(..), moduleNameString, unitIdString)
+import qualified Name as GHC
 import Outputable (showPpr)
+import qualified Outputable as GHC
 import PackageConfig
---import System.IO (hPutStrLn, stderr)
 import PackageConfig (packageConfigId)
 import Packages (explicitPackages, lookupPackage)
 import TcEnv (tcLookup)
 import TcRnMonad (initTcInteractive)
 import qualified TcRnTypes as GHC
+import qualified TyCon as GHC
 
 index :: GHC.GhcMonad m => m [PackageEntries]
 index = do
-  -- TODO the home package
   dflags <- GHC.getSessionDynFlags
+
   let explicit = explicitPackages $ GHC.pkgState dflags
       pkgcfgs = maybeToList . lookupPackage dflags =<< explicit
-  traverse getSymbols pkgcfgs
+  deps <- traverse getPkgSymbols pkgcfgs
+
+  -- TODO similarly to the Imports case, this can be slow if ghc thinks anything
+  -- is out of date and tries to compile it. However, here we can choose to
+  -- ignore anything that hasn't been compiled. We could filter the targets list
+  -- based on the .hi files that we see in the output directory.
+  _ <- GHC.load $ GHC.LoadAllTargets
+  let unitid = GHC.thisPackage dflags
+      dirs = maybeToList $ GHC.hiDir dflags
+  home_mods <- getHomeModules
+  home_entries <- getSymbols unitid home_mods dirs
+
+  pure $ home_entries : deps
+
+getPkgSymbols :: GHC.GhcMonad m => PackageConfig -> m PackageEntries
+getPkgSymbols pkg =
+  let unitid = packageConfigId pkg
+      exposed = Set.fromList $ fst <$> exposedModules pkg
+      dirs = (importDirs pkg)
+   in if Set.null exposed || null dirs
+        then pure $ PackageEntries unitid []
+        else getSymbols unitid exposed dirs
 
 -- TODO Maybe haddock-html
--- TODO Maybe source definition (or should we leave source resolution to downstream?)
-getSymbols :: GHC.GhcMonad m => PackageConfig -> m PackageEntries
-getSymbols pkg = do
+-- TODO Maybe source definition (or leave source resolution to downstream?)
+getSymbols :: GHC.GhcMonad m => GHC.UnitId -> Set GHC.ModuleName -> [FilePath] -> m PackageEntries
+getSymbols unitid exposed dirs = do
   let findHis dir = filter (".hi" `isSuffixOf`) <$> liftIO (walk dir)
-      exposed = Set.fromList $ fst <$> exposedModules pkg
-      unitid = packageConfigId pkg
-  his <- join <$> traverse findHis (importDirs pkg)
+  his <- join <$> traverse findHis dirs
   dflags <- GHC.getSessionDynFlags
   symbols <- catMaybes <$> traverse (hiToSymbols exposed) his
   let entries = uncurry mkEntries <$> symbols
       mkEntries m things = ModuleEntries (moduleName m) (renderThings things)
-      renderThings things = catMaybes $ (tyrender dflags) <$> things
+      renderThings things = catMaybes $ (uncurry $ tyrender dflags) <$> things
   pure $ PackageEntries unitid entries
 
-hiToSymbols :: GHC.GhcMonad m => Set GHC.ModuleName -> FilePath -> m (Maybe (GHC.Module, [GHC.TcTyThing]))
+hiToSymbols
+  :: GHC.GhcMonad m
+  => Set GHC.ModuleName
+  -> FilePath
+  -> m (Maybe (GHC.Module, [(Maybe GHC.Module, GHC.TcTyThing)]))
 hiToSymbols exposed hi = do
   env <- GHC.getSession
   (_, hits) <-
@@ -67,35 +98,68 @@ hiToSymbols exposed hi = do
       if not $ Set.member (GHC.moduleName m) exposed
         then pure Nothing
         else do
-          let thing (Avail name) = traverse tcLookup [name]
+          let thing (Avail name) = traverse tcLookup' [name]
               -- TODO the fields in AvailTC
-              thing (AvailTC name members _) = traverse tcLookup (name : members)
-          things <- traverse thing (mi_exports iface)
-          pure . Just $ (m, join things)
+              thing (AvailTC _ members _) = traverse tcLookup' members
+              reexport name = do
+                modl <- GHC.nameModule_maybe name
+                if m == modl then Nothing else Just modl
+              tcLookup' name = (reexport name,) <$> tcLookup name
+          things <- join <$> traverse thing (mi_exports iface)
+          pure . Just $ (m, things)
   pure $ join hits
 
-tyrender :: GHC.DynFlags -> GHC.TcTyThing -> Maybe Entry
-tyrender dflags (GHC.AGlobal (GHC.AnId var)) =
-  Just
-    $ Entry (showPpr dflags $ GHC.idName var)
-        (showPpr dflags $ GHC.idType var)
--- TODO investigate what we're skipping
-tyrender _ _ = Nothing
+tyrender :: GHC.DynFlags -> Maybe GHC.Module -> GHC.TcTyThing -> Maybe Entry
+tyrender dflags ((Mod <$>) -> m) (GHC.AGlobal thing) =
+  let
+    shw :: GHC.Outputable m => m -> String
+    shw = showPpr dflags
+   in case thing of
+    (GHC.AnId var) -> Just $ IdEntry m
+      (shw $ GHC.idName var)
+      (shw $ GHC.idType var) -- TODO fully qualify?
+    (GHC.AConLike (GHC.RealDataCon dc)) -> Just $ ConEntry m
+      (shw $ GHC.getName dc)
+      (shw $ GHC.dataConUserType dc) -- TODO fully qualify?
+    -- TODO PatSynCon
+    (GHC.ATyCon tc) -> Just $ TyConEntry m
+      (shw $ GHC.tyConName tc)
+      (shw $ GHC.tyConFlavour tc)
+    _ -> Nothing
+tyrender _ _ _ = Nothing
 
 -- TODO normalise the type string to make it easier for downstream tools to perform searches
--- TODO note if this is the original definition point (vs a re-export)
-data Entry = Entry String String
+data Entry = IdEntry (Maybe Mod) String String -- ^ name type
+           | ConEntry (Maybe Mod) String String -- ^ name type
+           | TyConEntry (Maybe Mod) String String -- ^ type flavour
 
 data ModuleEntries = ModuleEntries GHC.ModuleName [Entry]
 
 data PackageEntries = PackageEntries GHC.UnitId [ModuleEntries]
 
+newtype Mod = Mod GHC.Module
+
+instance ToSexp Mod where
+  toSexp (Mod m) = alist
+    [ ("unitid", SexpString . unitIdString . moduleUnitId $ m),
+      ("module", SexpString . moduleNameString . moduleName $ m) ]
+
 instance ToSexp Entry where
-  toSexp (Entry term typ) =
-    alist
-      [ ("name", SexpString term),
-        ("type", SexpString typ)
-      ]
+  toSexp (IdEntry m name typ) = alist
+    [ ("name", SexpString name),
+      ("type", SexpString typ),
+      ("class", "id"),
+      ("export", toSexp m)]
+  toSexp (ConEntry m name typ) = alist
+    [ ("name", SexpString name),
+      ("type", SexpString typ),
+      ("class", "con"),
+      ("export", toSexp m) ]
+  toSexp (TyConEntry m typ flavour) = alist
+    [ ("type", SexpString typ),
+      ("class", "tycon"),
+      ("flavour", SexpString flavour),
+      ("export", toSexp m) ]
 
 instance ToSexp ModuleEntries where
   toSexp (ModuleEntries modl entries) =
@@ -111,12 +175,27 @@ instance ToSexp PackageEntries where
         ("modules", toSexp modules)
       ]
 
+instance ToJson Mod where
+  json (Mod m) = JSObject
+    [ ("unitid", JSString . unitIdString . moduleUnitId $ m),
+      ("module", JSString . moduleNameString . moduleName $ m) ]
+
 instance ToJson Entry where
-  json (Entry term typ) =
-    JSObject
-      [ ("name", JSString term),
-        ("type", JSString typ)
-      ]
+  json (IdEntry m name typ) = JSObject
+    [ ("name", JSString name),
+      ("type", JSString typ),
+      ("class", JSString "id"),
+      ("export", json m)]
+  json (ConEntry m name typ) = JSObject
+    [ ("name", JSString name),
+      ("type", JSString typ),
+      ("class", JSString "con"),
+      ("export", json m) ]
+  json (TyConEntry m typ flavour) = JSObject
+    [ ("type", JSString typ),
+      ("class", JSString "tycon"),
+      ("flavour", JSString flavour),
+      ("export", json m) ]
 
 instance ToJson ModuleEntries where
   json (ModuleEntries modl entries) =

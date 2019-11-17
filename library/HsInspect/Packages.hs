@@ -10,7 +10,6 @@ import Control.Monad (join, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.List (isSuffixOf, nub, sort, (\\))
 import Data.Maybe (catMaybes)
-import qualified Data.Set as Set
 import FastString
 import Finder (findImportedModule)
 import qualified GHC
@@ -32,8 +31,7 @@ packages dir = do
   -- module, but with a twist: we only parse the imports from external packages.
   -- To do this we have to unload the home modules as provided by parameters and
   -- filter then when parsing the imports section.
-  args <- GHC.getTargets
-  let homes = Set.fromList . catMaybes $ getModule <$> args
+  homes <- getHomeModules
 
   srcs <- liftIO $ (filter (".hs" `isSuffixOf`)) <$> walk dir
 
@@ -50,11 +48,6 @@ packages dir = do
   let used = nub . sort $ pkgs
   let loaded = nub . sort . explicitPackages $ GHC.pkgState dflags
   pure $ PkgSummary used (loaded \\ used)
-
-getModule :: GHC.Target -> Maybe ModuleName
-getModule GHC.Target{GHC.targetId} = case targetId of
-  GHC.TargetModule m -> Just m
-  GHC.TargetFile _ _ -> Nothing
 
 findPackage :: GHC.GhcMonad m => ModuleName -> Maybe FastString -> m (Maybe GHC.UnitId)
 findPackage m mp = do

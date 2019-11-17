@@ -1,6 +1,22 @@
+{-# LANGUAGE NamedFieldPuns #-}
+
 module HsInspect.Util where
 
+import Data.Maybe (catMaybes)
+import Data.Set (Set)
+import qualified Data.Set as Set
+import qualified GHC as GHC
 import System.Directory (doesDirectoryExist, listDirectory)
+
+getHomeModules :: GHC.GhcMonad m => m (Set GHC.ModuleName)
+getHomeModules = do
+  args <- GHC.getTargets
+  pure . Set.fromList . catMaybes $ getModule <$> args
+  where
+    getModule :: GHC.Target -> Maybe GHC.ModuleName
+    getModule GHC.Target{GHC.targetId} = case targetId of
+      GHC.TargetModule m -> Just m
+      GHC.TargetFile _ _ -> Nothing
 
 walk :: FilePath -> IO [FilePath]
 walk dir = do

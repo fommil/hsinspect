@@ -1,8 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
 
-{-# OPTIONS_GHC -Wno-orphans #-}
-
 module Main where
 
 import qualified Config as GHC
@@ -14,10 +12,9 @@ import DynFlags (parseDynamicFlagsCmdLine, updOptLevel)
 import qualified GHC as GHC
 import HsInspect.Imports
 import HsInspect.Index
+import HsInspect.Json
 import HsInspect.Packages
 import HsInspect.Sexp as S
-import Json
-import Outputable (defaultUserStyle, initSDocContext, runSDoc)
 import System.Environment (getArgs)
 import System.Exit
 
@@ -88,10 +85,3 @@ filterFlags :: [String] -> [String]
 filterFlags ("--" : rest) = filter allow rest
   where allow flag = "-Wno" `isPrefixOf` flag || not ("-W" `isPrefixOf` flag)
 filterFlags _ = []
-
-encodeJson :: ToJson a => GHC.DynFlags -> a -> String
-encodeJson dflags as = show . flip runSDoc ctx . renderJSON . json $ as
-  where ctx = initSDocContext dflags $ defaultUserStyle dflags
-
-instance ToJson a => ToJson [a] where
-  json as = JSArray $ json <$> as

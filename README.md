@@ -12,7 +12,7 @@ The goal is to provide a very lightweight (zero dependency) command line interfa
 - [x] list used and unused packages
 - [ ] source location (maybe best for downstream reconciliation?)
 - [ ] list all symbol uses
-- [ ] [type holes](https://github.com/ghc-proposals/ghc-proposals/pull/280)
+- [ ] [type holes](https://github.com/ghc-proposals/ghc-proposals/pull/280) ([another way](https://github.com/isovector/dynahaskell/blob/master/src/Bindings.hs#L19))
 
 ## Contributing
 
@@ -56,7 +56,7 @@ if flag(ghcflags)
   ghc-options: -fplugin GhcFlags.Plugin
 ```
 
-Consider implementing https://github.com/haskell/cabal/issues/2965 to make this easier.
+We accept that this is a less-than-ideal way to use `hsinspect` but we also accept that it's a problem that can only be fixed by the build tool. If you'd like to help make it better in please implement https://github.com/haskell/cabal/issues/2965
 
 It is possible to enable the plugin on a per-user basis using `-packagedb` and `-packageid`, however that is left as an exercise for people who know what they are doing.
 

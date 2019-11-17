@@ -11,7 +11,6 @@ module GhcFlags.Plugin
   )
 where
 
-import qualified Config as GHC
 import Control.Exception (finally, onException)
 import Control.Monad (unless, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
