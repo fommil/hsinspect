@@ -18,6 +18,11 @@ data Sexp
 list :: [Sexp] -> Sexp
 list = foldr SexpCons SexpNil
 
+toAList :: Sexp -> Maybe [(String, Sexp)]
+toAList SexpNil = Just []
+toAList (SexpCons (SexpCons (SexpSymbol k) v) rest) = ((k, v) :) <$> toAList rest
+toAList _ = Nothing
+
 toList :: Sexp -> Maybe [Sexp]
 toList SexpNil = Just []
 toList (SexpCons a b) = (a :) <$> toList b
@@ -38,6 +43,9 @@ attrs els = list $ mkEl =<< els
 
 class ToSexp a where
   toSexp :: a -> Sexp
+
+instance ToSexp Sexp where
+  toSexp = id
 
 instance ToSexp String where
   toSexp s = SexpString s

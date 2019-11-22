@@ -63,10 +63,12 @@ main = do
       -- TODO it would be good if ghc had a "binary only" option for Targets
       --      with fail fast if only source code (no .hi) is discovered.
       (\m -> GHC.Target (GHC.TargetModule $ GHC.mkModuleName m) True Nothing) <$> homeModules
-    let respond rest as = liftIO . putStrLn $
+    let respond rest (S.toSexp -> a) = liftIO . putStrLn $
           if (elem "--json" rest)
-          then encodeJson dflags' as
-          else S.encode as
+          then case sexpToJson a of
+            Left err -> error err
+            Right j -> encodeJson dflags' j
+          else S.render a
     case args of
       "imports" : file : rest -> do
         quals <- imports file

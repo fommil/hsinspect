@@ -34,6 +34,7 @@ for t in * ; do
         $HSINSPECT imports "$f" --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "$f.$GHC_VERSION.imports.json"
     done
     $HSINSPECT packages library --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "library/$GHC_VERSION.packages.json"
+    # TODO rather than send stderr to /dev/null, change the dynflags verbosity to 0 (when we're comfortable with that)
     $HSINSPECT index --json -- $GHC_FLAGS 2>/dev/null | python -m json.tool --sort-keys > "library/$GHC_VERSION.index.json"
 done
 

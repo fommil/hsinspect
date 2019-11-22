@@ -28,7 +28,6 @@ import HsInspect.Json ()
 import HsInspect.Sexp
 import HsInspect.Util
 import qualified Id as GHC
-import Json
 import Module (Module(..), moduleNameString, unitIdString)
 import qualified Name as GHC
 import Outputable (showPpr)
@@ -173,40 +172,4 @@ instance ToSexp PackageEntries where
     alist
       [ ("unitid", SexpString . unitIdString $ pkg),
         ("modules", toSexp modules)
-      ]
-
-instance ToJson Mod where
-  json (Mod m) = JSObject
-    [ ("unitid", JSString . unitIdString . moduleUnitId $ m),
-      ("module", JSString . moduleNameString . moduleName $ m) ]
-
-instance ToJson Entry where
-  json (IdEntry m name typ) = JSObject
-    [ ("name", JSString name),
-      ("type", JSString typ),
-      ("class", JSString "id"),
-      ("export", json m)]
-  json (ConEntry m name typ) = JSObject
-    [ ("name", JSString name),
-      ("type", JSString typ),
-      ("class", JSString "con"),
-      ("export", json m) ]
-  json (TyConEntry m typ flavour) = JSObject
-    [ ("type", JSString typ),
-      ("class", JSString "tycon"),
-      ("flavour", JSString flavour),
-      ("export", json m) ]
-
-instance ToJson ModuleEntries where
-  json (ModuleEntries modl entries) =
-    JSObject
-      [ ("module", JSString . moduleNameString $ modl),
-        ("ids", JSArray $ json <$> entries)
-      ]
-
-instance ToJson PackageEntries where
-  json (PackageEntries pkg modules) =
-    JSObject
-      [ ("unitid", JSString . unitIdString $ pkg),
-        ("modules", JSArray $ json <$> modules)
       ]

@@ -17,7 +17,6 @@ import HscTypes (FindResult(..))
 import HsInspect.Sexp
 import HsInspect.Util
 import HsInspect.Workarounds
-import Json
 import Module (Module(..), ModuleName, moduleNameString, unitIdString)
 import Packages (PackageState(..))
 
@@ -83,9 +82,3 @@ instance ToSexp PkgSummary where
     alist [ ("used", toS used)
           , ("unused", toS unused) ]
     where toS ids = toSexp $ unitIdString <$> ids
-
-instance ToJson PkgSummary where
-  json (PkgSummary used unused) =
-    JSObject [ ("used", toJ used)
-             , ("unused", toJ unused) ]
-    where toJ ids = JSArray $ JSString . unitIdString <$> ids

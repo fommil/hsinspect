@@ -1,20 +1,22 @@
-{-# OPTIONS_GHC -Wno-orphans #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module HsInspect.Json where
 
 import qualified GHC as GHC
+import HsInspect.Sexp
 import Json
+import MonadUtils (mapSndM)
 import Outputable (defaultUserStyle, initSDocContext, runSDoc)
 
-encodeJson :: ToJson a => GHC.DynFlags -> a -> String
-encodeJson dflags as = show . flip runSDoc ctx . renderJSON . json $ as
+encodeJson :: GHC.DynFlags -> JsonDoc -> String
+encodeJson dflags j = show . flip runSDoc ctx . renderJSON $ j
   where ctx = initSDocContext dflags $ defaultUserStyle dflags
 
-instance ToJson a => ToJson (Maybe a) where
-  json Nothing = JSNull
-  json (Just a) = json a
-
-instance ToJson a => ToJson [a] where
-  json as = JSArray $ json <$> as
-
-
+sexpToJson :: Sexp -> Either String JsonDoc
+sexpToJson sexp = case sexp of
+  SexpNil -> Right JSNull
+  (toAList -> Just kvs) -> JSObject <$> mapSndM sexpToJson kvs
+  (toList -> Just as) -> JSArray <$> traverse sexpToJson as
+  (SexpCons _ _) -> Left $ "cons cell has no JSON equivalent"
+  (SexpString s) -> Right $ JSString s
+  (SexpSymbol s) -> Right $ JSString s -- nobody said it had to roundtrip

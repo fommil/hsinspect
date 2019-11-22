@@ -17655,7 +17655,7 @@
                 "module": "GHC.Float.RealFracMethods"
             },
             {
-                "ids": [],
+                "ids": null,
                 "module": "GHC.IO.Encoding.CodePage"
             },
             {
@@ -34276,11 +34276,11 @@
                 "module": "GHC.Conc"
             },
             {
-                "ids": [],
+                "ids": null,
                 "module": "GHC.ConsoleHandler"
             },
             {
-                "ids": [],
+                "ids": null,
                 "module": "GHC.Constants"
             },
             {
@@ -56183,7 +56183,7 @@
                 "module": "Text.Read.Lex"
             },
             {
-                "ids": [],
+                "ids": null,
                 "module": "Text.Show.Functions"
             },
             {

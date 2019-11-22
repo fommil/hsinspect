@@ -14,7 +14,6 @@ import qualified GHC as GHC
 import HscTypes (TargetId(..))
 import HsInspect.Sexp
 import HsInspect.Workarounds
-import Json
 import Outputable (Outputable, showPpr)
 import RdrName (GlobalRdrElt(..), ImpDeclSpec(..), ImportSpec(..),
                 globalRdrEnvElts)
@@ -78,14 +77,3 @@ instance ToSexp Qualified where
         ("qual", toSexp lqn),
         ("full", toSexp fqn)
       ]
-
-instance ToJson Qualified where
-  json (Qualified ln lqn fqn) =
-    JSObject
-      [ ("local", json' ln),
-        ("qual", json' lqn),
-        ("full", JSString fqn)
-      ]
-    where
-      json' Nothing = JSNull
-      json' (Just a) = JSString a
