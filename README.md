@@ -10,9 +10,8 @@ The goal is to provide a very lightweight (zero dependency) command line interfa
 - [x] list imported symbols in scope
 - [x] list packages, modules, names and types
 - [x] list used and unused packages
-- [ ] source location (maybe best for downstream reconciliation?)
 - [ ] list all symbol uses
-- [ ] [type holes](https://github.com/ghc-proposals/ghc-proposals/pull/280) ([another way](https://github.com/isovector/dynahaskell/blob/master/src/Bindings.hs#L19))
+- [ ] type at point / [type holes](https://github.com/ghc-proposals/ghc-proposals/pull/280) ([another way](https://github.com/isovector/dynahaskell/blob/master/src/Bindings.hs#L19))
 
 ## Contributing
 

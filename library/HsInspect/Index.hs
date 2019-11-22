@@ -69,8 +69,6 @@ getPkgSymbols pkg =
         then pure $ PackageEntries unitid []
         else getSymbols unitid exposed dirs
 
--- TODO Maybe haddock-html
--- TODO Maybe source definition (or leave source resolution to downstream?)
 getSymbols :: GHC.GhcMonad m => GHC.UnitId -> Set GHC.ModuleName -> [FilePath] -> m PackageEntries
 getSymbols unitid exposed dirs = do
   let findHis dir = filter (".hi" `isSuffixOf`) <$> liftIO (walk dir)
@@ -134,6 +132,8 @@ data Entry = IdEntry (Maybe Mod) String String -- ^ name type
 
 data ModuleEntries = ModuleEntries GHC.ModuleName [Entry]
 
+-- FIXME the packagedb file, so editors can use heuristics to look for source code
+-- TODO Maybe haddock-html
 data PackageEntries = PackageEntries GHC.UnitId [ModuleEntries]
 
 newtype Mod = Mod GHC.Module
