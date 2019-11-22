@@ -13,10 +13,9 @@ encodeJson dflags j = show . flip runSDoc ctx . renderJSON $ j
   where ctx = initSDocContext dflags $ defaultUserStyle dflags
 
 sexpToJson :: Sexp -> Either String JsonDoc
-sexpToJson sexp = case sexp of
-  SexpNil -> Right JSNull
-  (toAList -> Just kvs) -> JSObject <$> mapSndM sexpToJson kvs
-  (toList -> Just as) -> JSArray <$> traverse sexpToJson as
-  (SexpCons _ _) -> Left $ "cons cell has no JSON equivalent"
-  (SexpString s) -> Right $ JSString s
-  (SexpSymbol s) -> Right $ JSString s -- nobody said it had to roundtrip
+sexpToJson SexpNil = Right JSNull
+sexpToJson (toAList -> Just kvs) = JSObject <$> mapSndM sexpToJson kvs
+sexpToJson (toList -> Just as) = JSArray <$> traverse sexpToJson as
+sexpToJson (SexpCons _ _) = Left $ "cons cell has no JSON equivalent"
+sexpToJson (SexpString s) = Right $ JSString s
+sexpToJson (SexpSymbol s) = Right $ JSString s -- nobody said it had to roundtrip

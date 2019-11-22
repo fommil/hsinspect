@@ -46,13 +46,11 @@
     },
     {
         "full": "Prelude.zip",
-        "local": "zip",
-        "qual": null
+        "local": "zip"
     },
     {
         "full": "Medley.Wobble.wobble",
-        "local": "wobble",
-        "qual": null
+        "local": "wobble"
     },
     {
         "full": "Data.Functor.Contravariant.contramap",

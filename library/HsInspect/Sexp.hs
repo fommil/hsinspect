@@ -3,6 +3,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE ViewPatterns #-}
 
+-- | Very minimal ADT for outputting some S-Expressions.
 module HsInspect.Sexp where
 
 import Data.List (intercalate)
@@ -18,11 +19,6 @@ data Sexp
 list :: [Sexp] -> Sexp
 list = foldr SexpCons SexpNil
 
-toAList :: Sexp -> Maybe [(String, Sexp)]
-toAList SexpNil = Just []
-toAList (SexpCons (SexpCons (SexpSymbol k) v) rest) = ((k, v) :) <$> toAList rest
-toAList _ = Nothing
-
 toList :: Sexp -> Maybe [Sexp]
 toList SexpNil = Just []
 toList (SexpCons a b) = (a :) <$> toList b
@@ -36,10 +32,10 @@ alist els = list $ mkEl =<< els
   where
     mkEl (k, v) = [SexpCons k v]
 
-attrs :: [(String, Sexp)] -> Sexp
-attrs els = list $ mkEl =<< els
-  where
-    mkEl (k, v) = [SexpSymbol k, v]
+toAList :: Sexp -> Maybe [(String, Sexp)]
+toAList SexpNil = Just []
+toAList (SexpCons (SexpCons (SexpSymbol k) v) rest) = ((k, v) :) <$> toAList rest
+toAList _ = Nothing
 
 class ToSexp a where
   toSexp :: a -> Sexp
@@ -57,12 +53,16 @@ instance ToSexp a => ToSexp (Maybe a) where
   toSexp (Just a) = toSexp a
   toSexp Nothing = SexpNil
 
+filterNil :: Sexp -> Sexp
+filterNil SexpNil = SexpNil
+filterNil (SexpCons (SexpCons (SexpSymbol _) SexpNil) rest) = filterNil rest
+filterNil (SexpCons car cdr) = (SexpCons (filterNil car) (filterNil cdr))
+filterNil (SexpString s) = SexpString s
+filterNil (SexpSymbol s) = SexpSymbol s
+
 render :: Sexp -> String
 render SexpNil = "nil"
 render (toList -> Just ss) = "(" ++ (intercalate " " $ render <$> ss) ++ ")\n"
 render (SexpCons a b) = "(" ++ render a ++ " . " ++ render b ++ ")\n"
 render (SexpString s) = "\"" ++ escapeJsonString s ++ "\""
 render (SexpSymbol a) = escapeJsonString a
-
-encode :: ToSexp a => a -> String
-encode = render . toSexp
