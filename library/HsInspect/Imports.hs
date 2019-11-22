@@ -56,10 +56,6 @@ describe GRE {gre_name, gre_imp} = describe' <$> gre_imp
           fqn = showGhc is_mod ++ "." ++ showGhc gre_name
        in Qualified ln lqn fqn
 
--- Note that `nameSrcLoc gre_name` is empty
--- TODO unitid (can be used to lookup source code)
--- TODO "and originally defined" / ppr_defn_site
-
 -- 1. local name
 -- 2. locally qualified name
 -- 3. fully qualified name
