@@ -9,6 +9,7 @@ maintainer:    Tseen She
 copyright:     2019 Tseen She
 bug-reports:   https://gitlab.com/tseenshe/hsinspect/merge_requests
 tested-with:   GHC ^>=8.4.4 || ^>=8.6.5
+-- FIXME 8.8.1+ support
 category:      Building
 description:   Inspect @.hs@ files using the ghc api.
 
