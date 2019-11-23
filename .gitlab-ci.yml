@@ -1,4 +1,6 @@
-image: library/haskell:8.4.4
+image: library/haskell:8.6.5
+
+# TODO fix the build, it's failing in CI
 
 # TODO matrix build
 # https://docs.gitlab.com/ce/ci/yaml/README.html

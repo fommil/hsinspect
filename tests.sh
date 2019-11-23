@@ -10,13 +10,15 @@ cabal v2-build exe:hsinspect
 HSINSPECT=$(cabal v2-exec -v0 which -- hsinspect)
 GHC_VERSION=ghc-$(cabal v2-exec -v0 ghc -- --numeric-version)
 
+rm -rf dist-newstyle/build/*/*/medley-0.0.1
+
 cd tests
 
 for t in * ; do
     echo "testing $t"
     cd "$SCRIPT_DIR/tests/$t"
 
-    rm -rf dist-newstyle library/.ghc.flags || true
+    rm -rf library/.ghc.flags || true
     touch library/.ghc.flags # tests that overwriting works
 
     # a successful compile is not necessary for .hi files to be written!

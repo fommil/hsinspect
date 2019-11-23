@@ -166,6 +166,8 @@ data ModuleEntries = ModuleEntries GHC.ModuleName [Entry]
 -- Users should type `cabal haddock --enable-documentation` to populate the docs
 -- of their dependencies and local projects.
 type Haddocks = [FilePath]
+
+-- FIXME UnitId should not include the hashcode of the build
 data PackageEntries = PackageEntries GHC.UnitId [ModuleEntries] Haddocks
 
 newtype Mod = Mod GHC.Module
