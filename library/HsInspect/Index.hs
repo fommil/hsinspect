@@ -33,7 +33,7 @@ import qualified Name as GHC
 import Outputable (showPpr)
 import qualified Outputable as GHC
 import PackageConfig
-import PackageConfig (packageConfigId)
+import qualified PackageConfig as GHC
 import Packages (explicitPackages, lookupPackage)
 import TcEnv (tcLookup)
 import TcRnMonad (initTcInteractive)
@@ -93,7 +93,7 @@ withHi hi f = do
 
 getPkgSymbols :: GHC.GhcMonad m => PackageConfig -> m PackageEntries
 getPkgSymbols pkg =
-  let unitid = packageConfigId pkg
+  let unitid = GHC.packageConfigId pkg
       exposed = Set.fromList $ fst <$> exposedModules pkg
       dirs = (importDirs pkg)
       haddocks = GHC.haddockHTMLs pkg
