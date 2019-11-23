@@ -15,6 +15,9 @@
         "unitid": "medley-0.0.1-inplace"
     },
     {
+        "haddocks": [
+            "REDACTED"
+        ],
         "modules": [
             {
                 "ids": [
@@ -58475,6 +58478,9 @@
         "unitid": "base"
     },
     {
+        "haddocks": [
+            "REDACTED"
+        ],
         "modules": [
             {
                 "ids": [
@@ -58695,6 +58701,9 @@
         "unitid": "contravariant-1.5.2-f870f159691de7d69e5ecbca31de987f896a3c7da795371a806dd2798d3a0053"
     },
     {
+        "haddocks": [
+            "REDACTED"
+        ],
         "modules": [
             {
                 "ids": [

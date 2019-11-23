@@ -22,6 +22,7 @@ import qualified DataCon as GHC
 import qualified DynFlags as GHC
 import qualified GHC
 import GHC.PackageDb
+import qualified GHC.PackageDb as GHC
 import HscTypes (ModIface(..))
 import HsInspect.Json ()
 import HsInspect.Sexp
@@ -51,7 +52,7 @@ index = do
   let unitid = GHC.thisPackage dflags
       dirs = maybeToList $ GHC.hiDir dflags
   home_mods <- getTargetModules
-  home_entries <- getSymbols unitid home_mods dirs
+  home_entries <- getSymbols unitid [] home_mods dirs
 
   pure $ home_entries : deps
 
@@ -95,12 +96,13 @@ getPkgSymbols pkg =
   let unitid = packageConfigId pkg
       exposed = Set.fromList $ fst <$> exposedModules pkg
       dirs = (importDirs pkg)
+      haddocks = GHC.haddockHTMLs pkg
    in if Set.null exposed || null dirs
-        then pure $ PackageEntries unitid []
-        else getSymbols unitid exposed dirs
+        then pure $ PackageEntries unitid [] haddocks
+        else getSymbols unitid haddocks exposed dirs
 
-getSymbols :: GHC.GhcMonad m => GHC.UnitId -> Set GHC.ModuleName -> [FilePath] -> m PackageEntries
-getSymbols unitid exposed dirs = do
+getSymbols :: GHC.GhcMonad m => GHC.UnitId -> [FilePath] -> Set GHC.ModuleName -> [FilePath] -> m PackageEntries
+getSymbols unitid haddocks exposed dirs = do
   let findHis dir = liftIO $ walkSuffix ".hi" dir
   his <- join <$> traverse findHis dirs
   dflags <- GHC.getSessionDynFlags
@@ -108,7 +110,7 @@ getSymbols unitid exposed dirs = do
   let entries = uncurry mkEntries <$> symbols
       mkEntries m things = ModuleEntries (moduleName m) (renderThings things)
       renderThings things = catMaybes $ (uncurry $ tyrender dflags) <$> things
-  pure $ PackageEntries unitid entries
+  pure $ PackageEntries unitid entries haddocks
 
 -- for a .hi file returns the module and a list of all things (with types
 -- resolved) in that module and their original module if they are re-exported.
@@ -158,9 +160,14 @@ data Entry = IdEntry (Maybe Mod) String String -- ^ name type
 
 data ModuleEntries = ModuleEntries GHC.ModuleName [Entry]
 
--- FIXME the packagedb file, so editors can use heuristics to look for source code
--- TODO Maybe haddock-html
-data PackageEntries = PackageEntries GHC.UnitId [ModuleEntries]
+-- The haddocks serve a dual purpose: not only do they point to where haddocks
+-- might be, they give a hint to the text editor where the sources for this
+-- package are (e.g. with the ghc distribution, build tool store or local).
+--
+-- Users should type `cabal haddock --enable-documentation` to populate the docs
+-- of their dependencies and local projects.
+type Haddocks = [FilePath]
+data PackageEntries = PackageEntries GHC.UnitId [ModuleEntries] Haddocks
 
 newtype Mod = Mod GHC.Module
 
@@ -194,8 +201,8 @@ instance ToSexp ModuleEntries where
       ]
 
 instance ToSexp PackageEntries where
-  toSexp (PackageEntries pkg modules) =
+  toSexp (PackageEntries pkg modules haddocks) =
     alist
       [ ("unitid", SexpString . unitIdString $ pkg),
-        ("modules", toSexp modules)
-      ]
+        ("modules", toSexp modules),
+        ("haddocks", toSexp haddocks) ]

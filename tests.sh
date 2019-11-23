@@ -6,8 +6,8 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
 # use cabal v2-configure to change ghc version
-HSINSPECT="cabal v2-run -v0 hsinspect --"
-cabal v2-build --only-dependencies
+cabal v2-build exe:hsinspect
+HSINSPECT=$(cabal v2-exec -v0 which -- hsinspect)
 GHC_VERSION=ghc-$(cabal v2-exec -v0 ghc -- --numeric-version)
 
 cd tests
@@ -16,8 +16,7 @@ for t in * ; do
     echo "testing $t"
     cd "$SCRIPT_DIR/tests/$t"
 
-    cabal v2-clean
-    rm -rf library/.ghc.flags || true
+    rm -rf dist-newstyle library/.ghc.flags || true
     touch library/.ghc.flags # tests that overwriting works
 
     # a successful compile is not necessary for .hi files to be written!
@@ -34,7 +33,7 @@ for t in * ; do
         $HSINSPECT imports "$f" --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "$f.$GHC_VERSION.imports.json"
     done
     $HSINSPECT packages library --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "library/$GHC_VERSION.packages.json"
-    $HSINSPECT index --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "library/$GHC_VERSION.index.json"
+    $HSINSPECT index --json -- $GHC_FLAGS | sed "s|${HOME}[^\"]*\"|REDACTED\"|g" | python -m json.tool --sort-keys > "library/$GHC_VERSION.index.json"
 done
 
 cd "$SCRIPT_DIR"
