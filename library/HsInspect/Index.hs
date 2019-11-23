@@ -15,7 +15,6 @@ import BinIface (CheckHiWay(..), TraceBinIFaceReading(..), readBinIface)
 import qualified ConLike as GHC
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.List (isSuffixOf)
 import Data.Maybe (catMaybes, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -48,17 +47,48 @@ index = do
       pkgcfgs = maybeToList . lookupPackage dflags =<< explicit
   deps <- traverse getPkgSymbols pkgcfgs
 
-  -- TODO similarly to the Imports case, this can be slow if ghc thinks anything
-  -- is out of date and tries to compile it. However, here we can choose to
-  -- ignore anything that hasn't been compiled. We could filter the targets list
-  -- based on the .hi files that we see in the output directory.
-  _ <- GHC.load $ GHC.LoadAllTargets
+  loadCompiledModules
   let unitid = GHC.thisPackage dflags
       dirs = maybeToList $ GHC.hiDir dflags
-  home_mods <- getHomeModules
+  home_mods <- getTargetModules
   home_entries <- getSymbols unitid home_mods dirs
 
   pure $ home_entries : deps
+
+-- finds the module names of all the .hi files in the output directory and then
+-- tells ghc to load them as the only targets. Compared to loading all the home
+-- modules provided by the ghcflags, this means that ghc can only see the
+-- contents of compiled files and will not attempt to compile any source code.
+-- Obviously comes with caveats but will be much faster if the preferred
+-- behaviour is to fail fast with partial data instead of trying (futilely) to
+-- compile all home modules with the interactive compiler.
+loadCompiledModules :: GHC.GhcMonad m => m ()
+loadCompiledModules = do
+  dflags <- GHC.getSessionDynFlags
+  case GHC.hiDir dflags of
+    Nothing -> pure ()
+    Just dir -> do
+      compiled <- getCompiledTargets dir
+      GHC.setTargets compiled
+      void . GHC.load $ GHC.LoadAllTargets
+
+getCompiledTargets :: GHC.GhcMonad m => FilePath -> m [GHC.Target]
+getCompiledTargets dir = do
+  his <- liftIO $ walkSuffix ".hi" dir
+  modules <- catMaybes <$> traverse (flip withHi (pure . mi_module)) his
+  let toTarget m = GHC.Target (GHC.TargetModule m) True Nothing
+  pure $ (toTarget . moduleName) <$> modules
+
+-- Perform an operation given the parsed .hi file. tcLookup will only succeed if
+-- the module is on the packagedb or is a home module that has been loaded.
+withHi :: GHC.GhcMonad m => FilePath -> (GHC.ModIface -> (GHC.TcRnIf GHC.TcGblEnv GHC.TcLclEnv) a) -> m (Maybe a)
+withHi hi f = do
+  env <- GHC.getSession
+  -- TODO use initTc instead of initTcInteractive
+  (_, res) <- liftIO . initTcInteractive env $ do
+    iface <- readBinIface IgnoreHiWay QuietBinIFaceReading hi
+    f iface
+  pure res
 
 getPkgSymbols :: GHC.GhcMonad m => PackageConfig -> m PackageEntries
 getPkgSymbols pkg =
@@ -71,7 +101,7 @@ getPkgSymbols pkg =
 
 getSymbols :: GHC.GhcMonad m => GHC.UnitId -> Set GHC.ModuleName -> [FilePath] -> m PackageEntries
 getSymbols unitid exposed dirs = do
-  let findHis dir = filter (".hi" `isSuffixOf`) <$> liftIO (walk dir)
+  let findHis dir = liftIO $ walkSuffix ".hi" dir
   his <- join <$> traverse findHis dirs
   dflags <- GHC.getSessionDynFlags
   symbols <- catMaybes <$> traverse (hiToSymbols exposed) his
@@ -80,31 +110,27 @@ getSymbols unitid exposed dirs = do
       renderThings things = catMaybes $ (uncurry $ tyrender dflags) <$> things
   pure $ PackageEntries unitid entries
 
+-- for a .hi file returns the module and a list of all things (with types
+-- resolved) in that module and their original module if they are re-exported.
 hiToSymbols
   :: GHC.GhcMonad m
   => Set GHC.ModuleName
   -> FilePath
   -> m (Maybe (GHC.Module, [(Maybe GHC.Module, GHC.TcTyThing)]))
-hiToSymbols exposed hi = do
-  env <- GHC.getSession
-  (_, hits) <-
-    -- TODO use initTc instead of initTcInteractive
-    liftIO . initTcInteractive env $ do
-      iface <- readBinIface IgnoreHiWay QuietBinIFaceReading hi
-      let m = mi_module iface
-      if not $ Set.member (GHC.moduleName m) exposed
-        then pure Nothing
-        else do
-          let thing (Avail name) = traverse tcLookup' [name]
-              -- TODO the fields in AvailTC
-              thing (AvailTC _ members _) = traverse tcLookup' members
-              reexport name = do
-                modl <- GHC.nameModule_maybe name
-                if m == modl then Nothing else Just modl
-              tcLookup' name = (reexport name,) <$> tcLookup name
-          things <- join <$> traverse thing (mi_exports iface)
-          pure . Just $ (m, things)
-  pure $ join hits
+hiToSymbols exposed hi = (join <$>) <$> withHi hi $ \iface -> do
+  let m = mi_module iface
+  if not $ Set.member (GHC.moduleName m) exposed
+    then pure Nothing
+    else do
+      let thing (Avail name) = traverse tcLookup' [name]
+          -- TODO the fields in AvailTC
+          thing (AvailTC _ members _) = traverse tcLookup' members
+          reexport name = do
+            modl <- GHC.nameModule_maybe name
+            if m == modl then Nothing else Just modl
+          tcLookup' name = (reexport name,) <$> tcLookup name
+      things <- join <$> traverse thing (mi_exports iface)
+      pure . Just $ (m, things)
 
 tyrender :: GHC.DynFlags -> Maybe GHC.Module -> GHC.TcTyThing -> Maybe Entry
 tyrender dflags ((Mod <$>) -> m) (GHC.AGlobal thing) =

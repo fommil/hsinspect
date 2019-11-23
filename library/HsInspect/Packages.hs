@@ -8,7 +8,7 @@ module HsInspect.Packages (packages, PkgSummary) where
 import BasicTypes (StringLiteral(..))
 import Control.Monad (join, void)
 import Control.Monad.IO.Class (liftIO)
-import Data.List (isSuffixOf, nub, sort, (\\))
+import Data.List (nub, sort, (\\))
 import Data.Maybe (catMaybes)
 import FastString
 import Finder (findImportedModule)
@@ -30,9 +30,9 @@ packages dir = do
   -- module, but with a twist: we only parse the imports from external packages.
   -- To do this we have to unload the home modules as provided by parameters and
   -- filter then when parsing the imports section.
-  homes <- getHomeModules
+  homes <- getTargetModules
 
-  srcs <- liftIO $ (filter (".hs" `isSuffixOf`)) <$> walk dir
+  srcs <- liftIO $ walkSuffix ".hs" dir
 
   -- mods == homes. We could do two passes (ignore provided targets)
   (catMaybes -> mods, targets) <- unzip <$> traverse (importsOnly homes) srcs

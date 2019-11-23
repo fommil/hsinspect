@@ -2,14 +2,15 @@
 
 module HsInspect.Util where
 
+import Data.List (isSuffixOf)
 import Data.Maybe (catMaybes)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified GHC as GHC
 import System.Directory (doesDirectoryExist, listDirectory)
 
-getHomeModules :: GHC.GhcMonad m => m (Set GHC.ModuleName)
-getHomeModules = do
+getTargetModules :: GHC.GhcMonad m => m (Set GHC.ModuleName)
+getTargetModules = do
   args <- GHC.getTargets
   pure . Set.fromList . catMaybes $ getModule <$> args
   where
@@ -17,6 +18,9 @@ getHomeModules = do
     getModule GHC.Target{GHC.targetId} = case targetId of
       GHC.TargetModule m -> Just m
       GHC.TargetFile _ _ -> Nothing
+
+walkSuffix :: String -> FilePath -> IO [FilePath]
+walkSuffix suffix dir = filter (suffix `isSuffixOf`) <$> walk dir
 
 walk :: FilePath -> IO [FilePath]
 walk dir = do
