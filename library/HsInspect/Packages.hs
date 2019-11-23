@@ -5,7 +5,6 @@
 
 module HsInspect.Packages (packages, PkgSummary) where
 
-import BasicTypes (StringLiteral(..))
 import Control.Monad (join, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.List (nub, sort, (\\))
@@ -17,8 +16,9 @@ import HscTypes (FindResult(..))
 import HsInspect.Sexp
 import HsInspect.Util
 import HsInspect.Workarounds
-import Module (Module(..), ModuleName, moduleNameString, unitIdString)
+import Module (Module(..), ModuleName, unitIdString)
 import Packages (PackageState(..))
+import qualified RdrName as GHC
 
 -- Similar to packunused / weeder, but more reliable (and doesn't require a
 -- separate -ddump-minimal-imports pass).
@@ -56,24 +56,16 @@ findPackage m mp = do
     Found _ (Module u _) -> Just $ u
     _ -> Nothing
 
--- TODO: in 8.8.2+ we don't need to do the typechecking
 getImports :: GHC.GhcMonad m => ModuleName -> m [(ModuleName, Maybe FastString)]
 getImports m = do
-  modSum <- GHC.getModSummary m
-  pmod <- GHC.parseModule modSum
-  tmod <- GHC.typecheckModule pmod
-  case GHC.tm_renamed_source tmod of
-    Nothing -> error $ "bad module: " ++ moduleNameString m
-    Just (_, (GHC.unLoc <$>) -> imports, _, _) ->
-      pure . catMaybes $ qModule <$> imports
+  rdr_env <- minf_rdr_env' m
+  let imports = GHC.gre_imp =<< GHC.globalRdrEnvElts rdr_env
+  pure $ qModule <$> imports
 
-qModule :: GHC.ImportDecl p -> Maybe (ModuleName, Maybe FastString)
-qModule GHC.ImportDecl{GHC.ideclName, GHC.ideclPkgQual} = Just $
-  (GHC.unLoc ideclName, qual)
-  where qual = sl_fs <$> ideclPkgQual
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,0,0)
-qModule (GHC.XImportDecl _) = Nothing
-#endif
+-- PackageImports are not supported until ImpDeclSpec supports them (could parse
+-- gre_name's src span if we're desperate)
+qModule :: GHC.ImportSpec -> (ModuleName, Maybe FastString)
+qModule (GHC.ImpSpec (GHC.ImpDeclSpec{GHC.is_mod}) _) = (is_mod, Nothing)
 
 data PkgSummary = PkgSummary [GHC.UnitId] [GHC.UnitId]
   deriving (Eq, Ord)
