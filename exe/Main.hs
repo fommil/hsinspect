@@ -58,10 +58,9 @@ main = do
            , GHC.ghcLink   = GHC.LinkInMemory   -- required by HscInterpreted
            , GHC.ghcMode   = GHC.MkDepend       -- prefer .hi to .hs for dependencies
            }
+    -- TODO a better home module detector, e.g. remove +RTS ... -RTS
     let homeModules = (filter (isUpper . head) ghcargs)
     GHC.setTargets $
-      -- TODO it would be good if ghc had a "binary only" option for Targets
-      --      with fail fast if only source code (no .hi) is discovered.
       (\m -> GHC.Target (GHC.TargetModule $ GHC.mkModuleName m) True Nothing) <$> homeModules
     let respond rest (S.filterNil . S.toSexp -> a) = liftIO . putStrLn $
           if (elem "--json" rest)

@@ -45,8 +45,10 @@ install _ core = do
   unless written write
   pure core
 
--- TODO this only supports ghc being called with directories and home modules.
--- That means we don't support incremental compilation where ghc is called with
+-- TODO support incremental compilation
+--
+-- This only supports ghc being called with directories and home modules. That
+-- means we don't support incremental compilation where ghc is called with
 -- explicit filenames and dependencies. There are cases where the .ghc.flags may
 -- get out of date, e.g. adding / removing home modules. To handle those cases
 -- we need to detect them and write to a different (per-file) .ghc.flags

@@ -142,10 +142,10 @@ tyrender dflags ((Mod <$>) -> m) (GHC.AGlobal thing) =
    in case thing of
     (GHC.AnId var) -> Just $ IdEntry m
       (shw $ GHC.idName var)
-      (shw $ GHC.idType var) -- TODO fully qualify?
+      (shw $ GHC.idType var) -- TODO fully qualify
     (GHC.AConLike (GHC.RealDataCon dc)) -> Just $ ConEntry m
       (shw $ GHC.getName dc)
-      (shw $ GHC.dataConUserType dc) -- TODO fully qualify?
+      (shw $ GHC.dataConUserType dc) -- TODO fully qualify
     -- TODO PatSynCon
     (GHC.ATyCon tc) -> Just $ TyConEntry m
       (shw $ GHC.tyConName tc)
@@ -153,7 +153,6 @@ tyrender dflags ((Mod <$>) -> m) (GHC.AGlobal thing) =
     _ -> Nothing
 tyrender _ _ _ = Nothing
 
--- TODO normalise the type string to make it easier for downstream tools to perform searches
 data Entry = IdEntry (Maybe Mod) String String -- ^ name type
            | ConEntry (Maybe Mod) String String -- ^ name type
            | TyConEntry (Maybe Mod) String String -- ^ type flavour

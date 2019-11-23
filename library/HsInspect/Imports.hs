@@ -31,8 +31,10 @@ imports' file = do
   GHC.removeTarget $ TargetModule m
   GHC.addTarget target
 
-  -- TODO performance can be very bad here. It is possible that ghc is compiling
-  -- modules in the home module that have .hi files that would be much faster.
+  -- performance can be very bad here if the user hasn't compiled recently. We
+  -- could do the Index hack and only load things that have .hi files but that
+  -- will result in very bizarre behaviour and we don't expect the user's code
+  -- to be compilable at this point.
   _ <- GHC.load $ GHC.LoadUpTo m
 
   rdr_env <- minf_rdr_env' m
