@@ -22,7 +22,6 @@ for t in * ; do
     touch library/.ghc.flags # tests that overwriting works
 
     # a successful compile is not necessary for .hi files to be written!
-    # cabal v2-build --constraint="medley -uncompilable"
     cabal v2-build 2>/dev/null || true
     if [ ! -s library/.ghc.flags ] ; then
         echo "library/.ghc.flags was not overwritten, GhcFlags.Plugin failed"
@@ -34,8 +33,12 @@ for t in * ; do
         $HSINSPECT imports "$f" -- $GHC_FLAGS > "$f.$GHC_VERSION.imports.sexp"
         $HSINSPECT imports "$f" --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "$f.$GHC_VERSION.imports.json"
     done
-    $HSINSPECT packages library --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "library/$GHC_VERSION.packages.json"
     $HSINSPECT index --json -- $GHC_FLAGS | sed "s|${HOME}[^\"]*\"|REDACTED\"|g" | python -m json.tool --sort-keys > "library/$GHC_VERSION.index.json"
+
+    # the package command requires all files to be compilable
+    cabal v2-build --constraint="medley -uncompilable"
+    GHC_FLAGS=$(cat library/.ghc.flags)
+    $HSINSPECT packages --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "library/$GHC_VERSION.packages.json"
 done
 
 cd "$SCRIPT_DIR"

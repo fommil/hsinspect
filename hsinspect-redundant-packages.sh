@@ -27,7 +27,7 @@ for P in $(find . -path ./dist-newstyle -prune -o -name "*.cabal" -print) ; do
         if [ -f "$OUT" ] ; then
             rm "$OUT"
         fi
-        REPORT=$($HSINSPECT packages "$S" --json -- $(cat "$C"))
+        REPORT=$($HSINSPECT packages --json -- $(cat "$C"))
 
         if [ $? -eq 0 ] ; then
             UNUSED=$(echo $REPORT | jq '.unused')

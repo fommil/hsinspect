@@ -1,14 +1,15 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ViewPatterns #-}
 
 module HsInspect.Packages (packages, PkgSummary) where
 
 import Control.Monad (join, void)
 import Control.Monad.IO.Class (liftIO)
-import Data.List (nub, sort, (\\))
+import Data.List (delete, nub, sort, (\\))
 import Data.Maybe (catMaybes)
+import qualified Data.Set as Set
+import qualified DynFlags as GHC
 import FastString
 import Finder (findImportedModule)
 import qualified GHC
@@ -16,27 +17,15 @@ import HscTypes (FindResult(..))
 import HsInspect.Sexp
 import HsInspect.Util
 import HsInspect.Workarounds
-import Module (Module(..), ModuleName, unitIdString)
+import Module (Module(..), ModuleName)
 import Packages (PackageState(..))
 import qualified RdrName as GHC
 
 -- Similar to packunused / weeder, but more reliable (and doesn't require a
 -- separate -ddump-minimal-imports pass).
---
--- TODO get the dirs from the dynflags not the user
-packages :: GHC.GhcMonad m => FilePath -> m PkgSummary
-packages dir = do
-  -- We load all .hs files in dir, assuming they are the sources of the home
-  -- module, but with a twist: we only parse the imports from external packages.
-  -- To do this we have to unload the home modules as provided by parameters and
-  -- filter then when parsing the imports section.
-  homes <- getTargetModules
-
-  srcs <- liftIO $ walkSuffix ".hs" dir
-
-  -- mods == homes. We could do two passes (ignore provided targets)
-  (catMaybes -> mods, targets) <- unzip <$> traverse (importsOnly homes) srcs
-  _ <- GHC.setTargets targets
+packages :: GHC.GhcMonad m => m PkgSummary
+packages = do
+  mods <- Set.toList <$> getTargetModules
 
   dflags <- GHC.getSessionDynFlags
   void $ GHC.setSessionDynFlags dflags { GHC.ghcMode = GHC.CompManager }
@@ -44,8 +33,9 @@ packages dir = do
 
   imps <- nub . join <$> traverse getImports mods
   pkgs <- catMaybes <$> traverse (uncurry findPackage) imps
-  let used = nub . sort $ pkgs
-  let loaded = nub . sort . explicitPackages $ GHC.pkgState dflags
+  let home = GHC.thisPackage dflags
+      used = delete home . nub . sort $ pkgs
+      loaded = nub . sort . explicitPackages $ GHC.pkgState dflags
   pure $ PkgSummary used (loaded \\ used)
 
 findPackage :: GHC.GhcMonad m => ModuleName -> Maybe FastString -> m (Maybe GHC.UnitId)
@@ -74,4 +64,4 @@ instance ToSexp PkgSummary where
   toSexp (PkgSummary used unused) =
     alist [ ("used", toS used)
           , ("unused", toS unused) ]
-    where toS ids = toSexp $ unitIdString <$> ids
+    where toS ids = toSexp $ normaliseUnitId <$> ids

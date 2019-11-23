@@ -15,7 +15,6 @@ import BinIface (CheckHiWay(..), TraceBinIFaceReading(..), readBinIface)
 import qualified ConLike as GHC
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.List (intercalate)
 import Data.Maybe (catMaybes, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -29,7 +28,7 @@ import HsInspect.Json ()
 import HsInspect.Sexp
 import HsInspect.Util
 import qualified Id as GHC
-import Module (Module(..), moduleNameString, unitIdString)
+import Module (Module(..), moduleNameString)
 import qualified Name as GHC
 import Outputable (showPpr)
 import qualified Outputable as GHC
@@ -169,17 +168,6 @@ data ModuleEntries = ModuleEntries GHC.ModuleName [Entry]
 type Haddocks = [FilePath]
 
 data PackageEntries = PackageEntries GHC.UnitId [ModuleEntries] Haddocks
-
--- removes the cabal nix-style hashcode
-normaliseUnitId :: GHC.UnitId -> String
-normaliseUnitId (unitIdString -> unitid) =
-  case reverse $ split ('-' ==) unitid of
-    "inplace" : _ -> unitid
-    _ : version : pkg ->
-      if any ('.' ==) version
-        then intercalate "-" (pkg <> [version])
-        else unitid -- versioned but without a hashcode
-    _ -> unitid -- unversioned, e.g. base
 
 newtype Mod = Mod GHC.Module
 

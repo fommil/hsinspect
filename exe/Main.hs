@@ -75,8 +75,8 @@ main = do
       "index" : rest -> do
         hits <- index
         respond rest hits
-      "packages" : dir : rest -> do
-        hits <- packages dir
+      "packages" : rest -> do
+        hits <- packages
         respond rest hits
       _ ->
         liftIO $ error "invalid parameters"
