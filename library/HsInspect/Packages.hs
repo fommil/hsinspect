@@ -56,6 +56,7 @@ findPackage m mp = do
     Found _ (Module u _) -> Just $ u
     _ -> Nothing
 
+-- TODO: in 8.8.2+ we don't need to do the typechecking
 getImports :: GHC.GhcMonad m => ModuleName -> m [(ModuleName, Maybe FastString)]
 getImports m = do
   modSum <- GHC.getModSummary m

@@ -25,7 +25,6 @@ imports file = do
 
 imports' :: GHC.GhcMonad m => FilePath -> m [GlobalRdrElt]
 imports' file = do
-  -- TODO no need for this in 8.8.2+
   (fromJust -> m, target) <- importsOnly mempty file
 
   GHC.removeTarget $ TargetModule m
