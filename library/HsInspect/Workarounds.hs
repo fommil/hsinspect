@@ -57,7 +57,7 @@ importsOnly homes file = do
       let modname = unLoc <$> GHC.hsmodName hsmod
           extra =
             if modname == Nothing || modname == (Just $ GHC.mkModuleName "Main")
-            then "\nmain = return ()" -- TODO check that return is imported
+            then "\nmain = return ()"
             else ""
           imps = filter allowed $ GHC.hsmodImports hsmod
           -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/issues/17066
