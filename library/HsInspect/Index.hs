@@ -167,14 +167,24 @@ data ModuleEntries = ModuleEntries GHC.ModuleName [Entry]
 -- of their dependencies and local projects.
 type Haddocks = [FilePath]
 
--- FIXME UnitId should not include the hashcode of the build
 data PackageEntries = PackageEntries GHC.UnitId [ModuleEntries] Haddocks
+
+-- removes the cabal nix-style hashcode from a package number
+normaliseUnitId :: GHC.UnitId -> String
+normaliseUnitId unitid =
+  let str = unitIdString $ unitid
+  in case span ('-' /=) . reverse $ str of
+    (reverse -> back, '-' : (reverse -> front)) ->
+      if 64 == length back && all ('.' /=) back
+        then front
+        else str -- versioned but without a hashcode
+    _ -> str -- unversioned, e.g. base
 
 newtype Mod = Mod GHC.Module
 
 instance ToSexp Mod where
   toSexp (Mod m) = alist
-    [ ("unitid", SexpString . unitIdString . moduleUnitId $ m),
+    [ ("unitid", SexpString . normaliseUnitId . moduleUnitId $ m),
       ("module", SexpString . moduleNameString . moduleName $ m) ]
 
 instance ToSexp Entry where
@@ -202,8 +212,8 @@ instance ToSexp ModuleEntries where
       ]
 
 instance ToSexp PackageEntries where
-  toSexp (PackageEntries pkg modules haddocks) =
+  toSexp (PackageEntries unitid modules haddocks) =
     alist
-      [ ("unitid", SexpString . unitIdString $ pkg),
+      [ ("unitid", SexpString . normaliseUnitId $ unitid),
         ("modules", toSexp modules),
         ("haddocks", toSexp haddocks) ]
