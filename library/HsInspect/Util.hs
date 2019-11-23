@@ -44,3 +44,10 @@ concatMapM op = foldr f (pure [])
         else do
           xs' <- xs
           pure $ x' ++ xs'
+
+-- from extra
+split :: (a -> Bool) -> [a] -> [[a]]
+split _ [] = [[]]
+split f (x : xs) | f x = [] : split f xs
+                 | y : ys <- split f xs = (x : y) : ys
+                 | otherwise = [[]] -- never happens

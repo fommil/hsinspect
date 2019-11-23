@@ -15,6 +15,7 @@ import BinIface (CheckHiWay(..), TraceBinIFaceReading(..), readBinIface)
 import qualified ConLike as GHC
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.List (intercalate)
 import Data.Maybe (catMaybes, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -169,16 +170,16 @@ type Haddocks = [FilePath]
 
 data PackageEntries = PackageEntries GHC.UnitId [ModuleEntries] Haddocks
 
--- removes the cabal nix-style hashcode from a package number
+-- removes the cabal nix-style hashcode
 normaliseUnitId :: GHC.UnitId -> String
-normaliseUnitId unitid =
-  let str = unitIdString $ unitid
-  in case span ('-' /=) . reverse $ str of
-    (reverse -> back, '-' : (reverse -> front)) ->
-      if 64 == length back && all ('.' /=) back
-        then front
-        else str -- versioned but without a hashcode
-    _ -> str -- unversioned, e.g. base
+normaliseUnitId (unitIdString -> unitid) =
+  case reverse $ split ('-' ==) unitid of
+    "inplace" : _ -> unitid
+    _ : version : pkg ->
+      if any ('.' ==) version
+        then intercalate "-" (pkg <> [version])
+        else unitid -- versioned but without a hashcode
+    _ -> unitid -- unversioned, e.g. base
 
 newtype Mod = Mod GHC.Module
 
