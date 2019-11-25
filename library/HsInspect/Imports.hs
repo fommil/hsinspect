@@ -20,11 +20,6 @@ import RdrName (GlobalRdrElt(..), ImpDeclSpec(..), ImportSpec(..),
 
 imports :: GHC.GhcMonad m => FilePath -> m [Qualified]
 imports file = do
-  gres <- imports' file
-  pure $ describe =<< gres
-
-imports' :: GHC.GhcMonad m => FilePath -> m [GlobalRdrElt]
-imports' file = do
   (fromJust -> m, target) <- importsOnly mempty file
 
   GHC.removeTarget $ TargetModule m
@@ -37,7 +32,7 @@ imports' file = do
   _ <- GHC.load $ GHC.LoadUpTo m
 
   rdr_env <- minf_rdr_env' m
-  pure $ globalRdrEnvElts rdr_env
+  pure $ describe =<< globalRdrEnvElts rdr_env
 
 showGhc :: (Outputable a) => a -> String
 showGhc = showPpr unsafeGlobalDynFlags

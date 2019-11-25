@@ -44,7 +44,7 @@ executable hsinspect
   hs-source-dirs: exe
   build-depends:  hsinspect
   main-is:        Main.hs
-  ghc-options:    -threaded
+  ghc-options:    -rtsopts -threaded -with-rtsopts=-N8
 
 library
   import:          deps

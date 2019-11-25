@@ -9,6 +9,7 @@ import Control.Monad.IO.Class
 import Data.Char (isUpper)
 import Data.List (find, isPrefixOf)
 import DynFlags (parseDynamicFlagsCmdLine, updOptLevel)
+import qualified EnumSet as EnumSet
 import qualified GHC as GHC
 import HsInspect.Imports
 import HsInspect.Index
@@ -49,19 +50,20 @@ main = do
   when (elem "--ghc-version" args) $
     (putStrLn GHC.cProjectVersion) >> exitWith ExitSuccess
   let libdir = (drop 2) <$> find ("-B" `isPrefixOf`) flags
+      flags' = filter (not . ("-B" `isPrefixOf`)) flags
   GHC.runGhc libdir $ do
     dflags <- GHC.getSessionDynFlags
     (updOptLevel 0 -> dflags', (GHC.unLoc <$>) -> ghcargs, _) <-
-      liftIO $ parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> flags)
+      liftIO $ parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> flags')
     void $ GHC.setSessionDynFlags dflags'
            { GHC.hscTarget = GHC.HscInterpreted -- HscNothing compiles home modules, dunno why
            , GHC.ghcLink   = GHC.LinkInMemory   -- required by HscInterpreted
            , GHC.ghcMode   = GHC.MkDepend       -- prefer .hi to .hs for dependencies
+           , GHC.warningFlags = EnumSet.empty
+           , GHC.fatalWarningFlags = EnumSet.empty
            }
-    -- TODO a better home module detector, e.g. remove +RTS ... -RTS
-    let homeModules = (filter (isUpper . head) ghcargs)
-    GHC.setTargets $
-      (\m -> GHC.Target (GHC.TargetModule $ GHC.mkModuleName m) True Nothing) <$> homeModules
+    let mkTarget m = GHC.Target (GHC.TargetModule $ GHC.mkModuleName m) True Nothing
+    GHC.setTargets $ mkTarget <$> filter (isUpper . head) ghcargs
     let respond rest (S.filterNil . S.toSexp -> a) = liftIO . putStrLn $
           if (elem "--json" rest)
           then case sexpToJson a of
@@ -81,8 +83,10 @@ main = do
       _ ->
         liftIO $ error "invalid parameters"
 
--- TODO let each component remove things that interfere
+-- removes the "+RTS ... -RTS" sections
 filterFlags :: [String] -> [String]
-filterFlags ("--" : rest) = filter allow rest
-  where allow flag = "-Wno" `isPrefixOf` flag || not ("-W" `isPrefixOf` flag)
-filterFlags _ = []
+filterFlags args = case span ("+RTS" /=) args of
+  (front, []) -> front
+  (front, _ : middle) -> case span ("-RTS" /=) middle of
+    (_, []) -> front -- bad input?
+    (_, _ : back) -> front <> back
