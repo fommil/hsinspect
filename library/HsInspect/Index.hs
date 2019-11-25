@@ -15,7 +15,7 @@ import BinIface (CheckHiWay(..), TraceBinIFaceReading(..), readBinIface)
 import qualified ConLike as GHC
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Maybe (catMaybes, maybeToList)
+import Data.Maybe (catMaybes, mapMaybe, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified DataCon as GHC
@@ -35,6 +35,7 @@ import qualified Outputable as GHC
 import PackageConfig
 import qualified PackageConfig as GHC
 import Packages (explicitPackages, lookupPackage)
+--import System.IO (hPutStrLn, stderr)
 import TcEnv (tcLookup)
 import TcRnMonad (initTcInteractive)
 import qualified TcRnTypes as GHC
@@ -75,10 +76,14 @@ loadCompiledModules = do
 
 getCompiledTargets :: GHC.GhcMonad m => FilePath -> m [GHC.Target]
 getCompiledTargets dir = do
+  provided <- getTargetModules
   his <- liftIO $ walkSuffix ".hi" dir
   modules <- catMaybes <$> traverse (flip withHi (pure . mi_module)) his
-  let toTarget m = GHC.Target (GHC.TargetModule m) True Nothing
-  pure $ (toTarget . moduleName) <$> modules
+  let toTarget m =
+        if Set.member m provided
+          then Just $ GHC.Target (GHC.TargetModule m) True Nothing
+          else Nothing
+  pure $ mapMaybe (toTarget . moduleName) modules
 
 -- Perform an operation given the parsed .hi file. tcLookup will only succeed if
 -- the module is on the packagedb or is a home module that has been loaded.
