@@ -90,7 +90,6 @@ getCompiledTargets dir = do
 withHi :: GHC.GhcMonad m => FilePath -> (GHC.ModIface -> (GHC.TcRnIf GHC.TcGblEnv GHC.TcLclEnv) a) -> m (Maybe a)
 withHi hi f = do
   env <- GHC.getSession
-  -- TODO use initTc instead of initTcInteractive
   (_, res) <- liftIO . initTcInteractive env $ do
     iface <- readBinIface IgnoreHiWay QuietBinIFaceReading hi
     f iface
