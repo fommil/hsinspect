@@ -60103,6 +60103,6 @@
                 "module": "GhcFlags.Plugin"
             }
         ],
-        "unitid": "ghcflags-1.0.2-inplace"
+        "unitid": "ghcflags-1.0.3-inplace"
     }
 ]

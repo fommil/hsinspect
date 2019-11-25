@@ -1,6 +1,6 @@
 cabal-version: 2.2
 name:          ghcflags
-version:       1.0.2
+version:       1.0.3
 synopsis:      Dump the ghc flags during compilation
 license:       BSD-2-Clause
 license-file:  LICENSE
