@@ -55,6 +55,12 @@ if flag(ghcflags)
   ghc-options: -fplugin GhcFlags.Plugin
 ```
 
+and then enable in `cabal.project.local` with
+
+```
+flags: +ghcflags
+```
+
 We accept that this is a less-than-ideal way to use `hsinspect` but we also accept that it's a problem that can only be fixed by the build tool. If you'd like to help make it better in please implement https://github.com/haskell/cabal/issues/2965
 
 It is possible to enable the plugin on a per-user basis using `-packagedb` and `-packageid`, however that is left as an exercise for people who know what they are doing.
