@@ -1,9 +1,9 @@
 {
     "unused": [
-        "ghcflags-1.0.3-inplace"
+        "ghcflags"
     ],
     "used": [
         "base",
-        "contravariant-1.5.2"
+        "contravariant"
     ]
 }

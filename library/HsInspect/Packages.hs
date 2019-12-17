@@ -6,6 +6,7 @@ module HsInspect.Packages (packages, PkgSummary) where
 
 import Control.Monad (join, void)
 import Control.Monad.IO.Class (liftIO)
+import Data.Coerce
 import Data.List (delete, nub, sort, (\\))
 import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
@@ -18,7 +19,8 @@ import HsInspect.Sexp
 import HsInspect.Util
 import HsInspect.Workarounds
 import Module (Module(..), ModuleName)
-import Packages (PackageState(..))
+import qualified PackageConfig as GHC
+import Packages (PackageState(..), getPackageDetails)
 import qualified RdrName as GHC
 
 -- Similar to packunused / weeder, but more reliable (and doesn't require a
@@ -36,7 +38,8 @@ packages = do
   let home = GHC.thisPackage dflags
       used = delete home . nub . sort $ pkgs
       loaded = nub . sort . explicitPackages $ GHC.pkgState dflags
-  pure $ PkgSummary used (loaded \\ used)
+      asNames unitids = GHC.packageName . getPackageDetails dflags <$> unitids
+  pure $ PkgSummary (asNames used) (asNames $ loaded \\ used)
 
 findPackage :: GHC.GhcMonad m => ModuleName -> Maybe FastString -> m (Maybe GHC.UnitId)
 findPackage m mp = do
@@ -57,11 +60,11 @@ getImports m = do
 qModule :: GHC.ImportSpec -> (ModuleName, Maybe FastString)
 qModule (GHC.ImpSpec (GHC.ImpDeclSpec{GHC.is_mod}) _) = (is_mod, Nothing)
 
-data PkgSummary = PkgSummary [GHC.UnitId] [GHC.UnitId]
+data PkgSummary = PkgSummary [GHC.PackageName] [GHC.PackageName]
   deriving (Eq, Ord)
 
 instance ToSexp PkgSummary where
   toSexp (PkgSummary used unused) =
     alist [ ("used", toS used)
           , ("unused", toS unused) ]
-    where toS ids = toSexp $ normaliseUnitId <$> ids
+    where toS ids = toSexp $ unpackFS . coerce <$> ids

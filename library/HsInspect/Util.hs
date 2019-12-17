@@ -3,25 +3,12 @@
 
 module HsInspect.Util where
 
-import Data.List (intercalate)
 import Data.List (isSuffixOf)
 import Data.Maybe (catMaybes)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified GHC as GHC
-import qualified Module as GHC
 import System.Directory (doesDirectoryExist, listDirectory)
-
--- removes the cabal nix-style hashcode
-normaliseUnitId :: GHC.UnitId -> String
-normaliseUnitId (GHC.unitIdString -> unitid) =
-  case reverse $ split ('-' ==) unitid of
-    "inplace" : _ -> unitid
-    _ : version : pkg ->
-      if any ('.' ==) version
-        then intercalate "-" (pkg <> [version])
-        else unitid -- versioned but without a hashcode
-    _ -> unitid -- unversioned, e.g. base
 
 getTargetModules :: GHC.GhcMonad m => m (Set GHC.ModuleName)
 getTargetModules = do

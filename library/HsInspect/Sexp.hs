@@ -46,6 +46,10 @@ instance ToSexp Sexp where
 instance ToSexp String where
   toSexp s = SexpString s
 
+instance ToSexp Bool where
+  toSexp False = SexpNil
+  toSexp True = SexpSymbol "t"
+
 instance ToSexp a => ToSexp [a] where
   toSexp as = list $ toSexp <$> as
 

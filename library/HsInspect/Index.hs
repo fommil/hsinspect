@@ -1,7 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE ViewPatterns #-}
 
 -- | Dumps an index of all terms and their types
 module HsInspect.Index
@@ -15,11 +14,14 @@ import BinIface (CheckHiWay(..), TraceBinIFaceReading(..), readBinIface)
 import qualified ConLike as GHC
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Coerce
+import Data.List (isInfixOf)
 import Data.Maybe (catMaybes, mapMaybe, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified DataCon as GHC
 import qualified DynFlags as GHC
+import FastString (unpackFS)
 import qualified GHC
 import GHC.PackageDb
 import qualified GHC.PackageDb as GHC
@@ -29,12 +31,13 @@ import HsInspect.Sexp
 import HsInspect.Util
 import qualified Id as GHC
 import Module (Module(..), moduleNameString)
+import Module as GHC
 import qualified Name as GHC
 import Outputable (showPpr)
 import qualified Outputable as GHC
 import PackageConfig
 import qualified PackageConfig as GHC
-import Packages (explicitPackages, lookupPackage)
+import Packages (explicitPackages, getPackageDetails, lookupPackage)
 --import System.IO (hPutStrLn, stderr)
 import TcEnv (tcLookup)
 import TcRnMonad (initTcInteractive)
@@ -51,9 +54,10 @@ index = do
 
   loadCompiledModules
   let unitid = GHC.thisPackage dflags
+      spid = sourcePackageId $ getPackageDetails dflags unitid
       dirs = maybeToList $ GHC.hiDir dflags
   home_mods <- getTargetModules
-  home_entries <- getSymbols unitid [] home_mods dirs
+  home_entries <- getSymbols spid True [] home_mods dirs
 
   pure $ home_entries : deps
 
@@ -96,17 +100,20 @@ withHi hi f = do
   pure res
 
 getPkgSymbols :: GHC.GhcMonad m => PackageConfig -> m PackageEntries
-getPkgSymbols pkg =
+getPkgSymbols pkg = do
+  dflags <- GHC.getSessionDynFlags
   let unitid = GHC.packageConfigId pkg
+      inplace = "-inplace" `isInfixOf` (GHC.unitIdString unitid)
+      spid = sourcePackageId $ getPackageDetails dflags unitid
       exposed = Set.fromList $ fst <$> exposedModules pkg
       dirs = (importDirs pkg)
       haddocks = GHC.haddockHTMLs pkg
-   in if Set.null exposed || null dirs
-        then pure $ PackageEntries unitid [] haddocks
-        else getSymbols unitid haddocks exposed dirs
+  if Set.null exposed || null dirs
+    then pure $ PackageEntries spid inplace [] haddocks
+    else getSymbols spid inplace haddocks exposed dirs
 
-getSymbols :: GHC.GhcMonad m => GHC.UnitId -> [FilePath] -> Set GHC.ModuleName -> [FilePath] -> m PackageEntries
-getSymbols unitid haddocks exposed dirs = do
+getSymbols :: GHC.GhcMonad m => SourcePackageId -> Bool -> [FilePath] -> Set GHC.ModuleName -> [FilePath] -> m PackageEntries
+getSymbols spid inplace haddocks exposed dirs = do
   let findHis dir = liftIO $ walkSuffix ".hi" dir
   his <- join <$> traverse findHis dirs
   dflags <- GHC.getSessionDynFlags
@@ -114,7 +121,7 @@ getSymbols unitid haddocks exposed dirs = do
   let entries = uncurry mkEntries <$> symbols
       mkEntries m things = ModuleEntries (moduleName m) (renderThings things)
       renderThings things = catMaybes $ (uncurry $ tyrender dflags) <$> things
-  pure $ PackageEntries unitid entries haddocks
+  pure $ PackageEntries spid inplace entries haddocks
 
 -- for a .hi file returns the module and a list of all things (with types
 -- resolved) in that module and their original module if they are re-exported.
@@ -139,8 +146,9 @@ hiToSymbols exposed hi = (join <$>) <$> withHi hi $ \iface -> do
       pure . Just $ (m, things)
 
 tyrender :: GHC.DynFlags -> Maybe GHC.Module -> GHC.TcTyThing -> Maybe Entry
-tyrender dflags ((Mod <$>) -> m) (GHC.AGlobal thing) =
+tyrender dflags m' (GHC.AGlobal thing) =
   let
+    m = mkMod dflags <$> m'
     shw :: GHC.Outputable m => m -> String
     shw = showPpr dflags
    in case thing of
@@ -171,14 +179,21 @@ data ModuleEntries = ModuleEntries GHC.ModuleName [Entry]
 -- of their dependencies and local projects.
 type Haddocks = [FilePath]
 
-data PackageEntries = PackageEntries GHC.UnitId [ModuleEntries] Haddocks
+-- Bool indicates if this is an -inplace package
+data PackageEntries = PackageEntries SourcePackageId Bool [ModuleEntries] Haddocks
 
-newtype Mod = Mod GHC.Module
+data Mod = Mod SourcePackageId GHC.ModuleName
 
+mkMod :: GHC.DynFlags -> Module -> Mod
+mkMod dflags m = Mod
+  (sourcePackageId $ getPackageDetails dflags (moduleUnitId m))
+  (moduleName m)
+
+-- TODO don't include srcid if it matches the current module
 instance ToSexp Mod where
-  toSexp (Mod m) = alist
-    [ ("unitid", SexpString . normaliseUnitId . moduleUnitId $ m),
-      ("module", SexpString . moduleNameString . moduleName $ m) ]
+  toSexp (Mod spid name) = alist
+    [ ("srcid", SexpString . unpackFS . coerce $ spid),
+      ("module", SexpString . moduleNameString $ name) ]
 
 instance ToSexp Entry where
   toSexp (IdEntry m name typ) = alist
@@ -205,8 +220,10 @@ instance ToSexp ModuleEntries where
       ]
 
 instance ToSexp PackageEntries where
-  toSexp (PackageEntries unitid modules haddocks) =
+  toSexp (PackageEntries spid inplace modules haddocks) =
     alist
-      [ ("unitid", SexpString . normaliseUnitId $ unitid),
+      [ ("srcid", toSexp . unpackFS . coerce $ spid),
+        ("inplace", toSexp inplace),
         ("modules", toSexp modules),
         ("haddocks", toSexp haddocks) ]
+
