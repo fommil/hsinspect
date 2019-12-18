@@ -13,7 +13,7 @@
 
 BASE=$PWD
 
-HSINSPECT=hsinspect
+HSINSPECT=$(cabal exec -v0 which -- hsinspect)
 
 for P in $(find . -path ./dist-newstyle -prune -o -name "*.cabal" -print) ; do
     cd "$BASE"
