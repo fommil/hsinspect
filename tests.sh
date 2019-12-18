@@ -34,6 +34,8 @@ for t in * ; do
         $HSINSPECT imports "$f" --json -- $GHC_FLAGS | python -m json.tool --sort-keys > "$f.$GHC_VERSION.imports.json"
     done
     $HSINSPECT index --json -- $GHC_FLAGS | sed "s|${HOME}[^\"]*\"|REDACTED\"|g" | python -m json.tool --sort-keys > "library/$GHC_VERSION.index.json"
+    # to generate haskell-tng test data
+    # $HSINSPECT index -- $GHC_FLAGS | sed "s|${HOME}[^\"]*\"|REDACTED\"|g" > "library/$GHC_VERSION.index.sexp"
 
     # the package command requires all files to be compilable
     cabal v2-build --constraint="medley -uncompilable"
