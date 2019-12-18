@@ -33,12 +33,13 @@ import qualified Id as GHC
 import Module (Module(..), moduleNameString)
 import Module as GHC
 import qualified Name as GHC
-import Outputable (showPpr)
+import Outputable (showPpr, showSDoc)
 import qualified Outputable as GHC
 import PackageConfig
 import qualified PackageConfig as GHC
 import Packages (explicitPackages, getPackageDetails, lookupPackage)
 --import System.IO (hPutStrLn, stderr)
+import qualified PatSyn as GHC
 import TcEnv (tcLookup)
 import TcRnMonad (initTcInteractive)
 import qualified TcRnTypes as GHC
@@ -154,7 +155,9 @@ tyrender dflags unitid m' (GHC.AGlobal thing) =
     (GHC.AConLike (GHC.RealDataCon dc)) -> Just $ ConEntry m
       (shw $ GHC.getName dc)
       (shw $ GHC.dataConUserType dc) -- TODO fully qualify
-    -- TODO PatSynCon
+    (GHC.AConLike (GHC.PatSynCon ps)) -> Just $ PatSynEntry m
+      (shw $ GHC.getName ps)
+      (showSDoc dflags $ GHC.pprPatSynType ps )
     (GHC.ATyCon tc) -> Just $ TyConEntry m
       (shw $ GHC.tyConName tc)
       (shw $ GHC.tyConFlavour tc)
@@ -163,6 +166,7 @@ tyrender _ _ _ _ = Nothing
 
 data Entry = IdEntry (Maybe Exported) String String -- ^ name type
            | ConEntry (Maybe Exported) String String -- ^ name type
+           | PatSynEntry (Maybe Exported) String String -- ^ name orig
            | TyConEntry (Maybe Exported) String String -- ^ type flavour
 
 data ModuleEntries = ModuleEntries GHC.ModuleName [Entry]
@@ -205,6 +209,11 @@ instance ToSexp Entry where
     [ ("name", SexpString name),
       ("type", SexpString typ),
       ("class", "con"),
+      ("export", toSexp m) ]
+  toSexp (PatSynEntry m name typ) = alist
+    [ ("name", SexpString name),
+      ("type", SexpString typ),
+      ("class", "pat"),
       ("export", toSexp m) ]
   toSexp (TyConEntry m typ flavour) = alist
     [ ("type", SexpString typ),

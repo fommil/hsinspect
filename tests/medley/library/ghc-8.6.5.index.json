@@ -553,6 +553,14 @@
                         "type": "ErrorCall"
                     },
                     {
+                        "class": "pat",
+                        "export": {
+                            "module": "GHC.Exception"
+                        },
+                        "name": "ErrorCall",
+                        "type": "String -> ErrorCall"
+                    },
+                    {
                         "class": "con",
                         "export": {
                             "module": "GHC.Exception"
@@ -2555,6 +2563,14 @@
                         },
                         "flavour": "data type",
                         "type": "ErrorCall"
+                    },
+                    {
+                        "class": "pat",
+                        "export": {
+                            "module": "GHC.Exception"
+                        },
+                        "name": "ErrorCall",
+                        "type": "String -> ErrorCall"
                     },
                     {
                         "class": "con",
@@ -32075,6 +32091,11 @@
                         "type": "ErrorCall"
                     },
                     {
+                        "class": "pat",
+                        "name": "ErrorCall",
+                        "type": "String -> ErrorCall"
+                    },
+                    {
                         "class": "con",
                         "name": "ErrorCallWithLocation",
                         "type": "String -> String -> ErrorCall"
@@ -53775,6 +53796,14 @@
                         "type": "KindRep"
                     },
                     {
+                        "class": "pat",
+                        "export": {
+                            "module": "Data.Typeable.Internal"
+                        },
+                        "name": "KindRepTypeLit",
+                        "type": "TypeLitSort -> String -> KindRep"
+                    },
+                    {
                         "class": "con",
                         "export": {
                             "module": "GHC.Types",
@@ -53878,6 +53907,38 @@
             },
             {
                 "ids": [
+                    {
+                        "class": "pat",
+                        "export": {
+                            "module": "Data.Typeable.Internal"
+                        },
+                        "name": "App",
+                        "type": "forall k2 (t :: k2).\n() =>\nforall k1 (a :: k1 -> k2) (b :: k1).\n(t ~ a b) =>\nTypeRep a -> TypeRep b -> TypeRep t"
+                    },
+                    {
+                        "class": "pat",
+                        "export": {
+                            "module": "Data.Typeable.Internal"
+                        },
+                        "name": "Con",
+                        "type": "forall k (a :: k).\n() =>\n(IsApplication a ~ \"\") => TyCon -> TypeRep a"
+                    },
+                    {
+                        "class": "pat",
+                        "export": {
+                            "module": "Data.Typeable.Internal"
+                        },
+                        "name": "Con'",
+                        "type": "forall k (a :: k).\n() =>\n(IsApplication a ~ \"\") => TyCon -> [SomeTypeRep] -> TypeRep a"
+                    },
+                    {
+                        "class": "pat",
+                        "export": {
+                            "module": "Data.Typeable.Internal"
+                        },
+                        "name": "Fun",
+                        "type": "forall k (fun :: k).\n() =>\nforall arg res.\n(k ~ *, fun ~~ (arg -> res)) =>\nTypeRep arg -> TypeRep res -> TypeRep fun"
+                    },
                     {
                         "class": "id",
                         "export": {

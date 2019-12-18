@@ -6,11 +6,10 @@ import qualified GHC as GHC
 import HsInspect.Sexp
 import Json
 import MonadUtils (mapSndM)
-import Outputable (defaultUserStyle, initSDocContext, runSDoc)
+import Outputable (showSDoc)
 
 encodeJson :: GHC.DynFlags -> JsonDoc -> String
-encodeJson dflags j = show . flip runSDoc ctx . renderJSON $ j
-  where ctx = initSDocContext dflags $ defaultUserStyle dflags
+encodeJson dflags j = showSDoc dflags . renderJSON $ j
 
 sexpToJson :: Sexp -> Either String JsonDoc
 sexpToJson SexpNil = Right JSNull
