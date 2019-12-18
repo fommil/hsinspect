@@ -54,10 +54,9 @@ index = do
 
   loadCompiledModules
   let unitid = GHC.thisPackage dflags
-      spid = sourcePackageId $ getPackageDetails dflags unitid
       dirs = maybeToList $ GHC.hiDir dflags
   home_mods <- getTargetModules
-  home_entries <- getSymbols spid True [] home_mods dirs
+  home_entries <- getSymbols unitid True [] home_mods dirs
 
   pure $ home_entries : deps
 
@@ -100,27 +99,24 @@ withHi hi f = do
   pure res
 
 getPkgSymbols :: GHC.GhcMonad m => PackageConfig -> m PackageEntries
-getPkgSymbols pkg = do
-  dflags <- GHC.getSessionDynFlags
+getPkgSymbols pkg =
   let unitid = GHC.packageConfigId pkg
       inplace = "-inplace" `isInfixOf` (GHC.unitIdString unitid)
-      spid = sourcePackageId $ getPackageDetails dflags unitid
       exposed = Set.fromList $ fst <$> exposedModules pkg
       dirs = (importDirs pkg)
       haddocks = GHC.haddockHTMLs pkg
-  if Set.null exposed || null dirs
-    then pure $ PackageEntries spid inplace [] haddocks
-    else getSymbols spid inplace haddocks exposed dirs
+   in getSymbols unitid inplace haddocks exposed dirs
 
-getSymbols :: GHC.GhcMonad m => SourcePackageId -> Bool -> [FilePath] -> Set GHC.ModuleName -> [FilePath] -> m PackageEntries
-getSymbols spid inplace haddocks exposed dirs = do
+getSymbols :: GHC.GhcMonad m => UnitId -> Bool -> [FilePath] -> Set GHC.ModuleName -> [FilePath] -> m PackageEntries
+getSymbols unitid inplace haddocks exposed dirs = do
   let findHis dir = liftIO $ walkSuffix ".hi" dir
   his <- join <$> traverse findHis dirs
   dflags <- GHC.getSessionDynFlags
+  let spid = sourcePackageId $ getPackageDetails dflags unitid
   symbols <- catMaybes <$> traverse (hiToSymbols exposed) his
   let entries = uncurry mkEntries <$> symbols
       mkEntries m things = ModuleEntries (moduleName m) (renderThings things)
-      renderThings things = catMaybes $ (uncurry $ tyrender dflags) <$> things
+      renderThings things = catMaybes $ (uncurry $ tyrender dflags unitid) <$> things
   pure $ PackageEntries spid inplace entries haddocks
 
 -- for a .hi file returns the module and a list of all things (with types
@@ -145,10 +141,10 @@ hiToSymbols exposed hi = (join <$>) <$> withHi hi $ \iface -> do
       things <- join <$> traverse thing (mi_exports iface)
       pure . Just $ (m, things)
 
-tyrender :: GHC.DynFlags -> Maybe GHC.Module -> GHC.TcTyThing -> Maybe Entry
-tyrender dflags m' (GHC.AGlobal thing) =
+tyrender :: GHC.DynFlags -> UnitId -> Maybe GHC.Module -> GHC.TcTyThing -> Maybe Entry
+tyrender dflags unitid m' (GHC.AGlobal thing) =
   let
-    m = mkMod dflags <$> m'
+    m = mkExported dflags unitid <$> m'
     shw :: GHC.Outputable m => m -> String
     shw = showPpr dflags
    in case thing of
@@ -163,11 +159,11 @@ tyrender dflags m' (GHC.AGlobal thing) =
       (shw $ GHC.tyConName tc)
       (shw $ GHC.tyConFlavour tc)
     _ -> Nothing
-tyrender _ _ _ = Nothing
+tyrender _ _ _ _ = Nothing
 
-data Entry = IdEntry (Maybe Mod) String String -- ^ name type
-           | ConEntry (Maybe Mod) String String -- ^ name type
-           | TyConEntry (Maybe Mod) String String -- ^ type flavour
+data Entry = IdEntry (Maybe Exported) String String -- ^ name type
+           | ConEntry (Maybe Exported) String String -- ^ name type
+           | TyConEntry (Maybe Exported) String String -- ^ type flavour
 
 data ModuleEntries = ModuleEntries GHC.ModuleName [Entry]
 
@@ -182,17 +178,21 @@ type Haddocks = [FilePath]
 -- Bool indicates if this is an -inplace package
 data PackageEntries = PackageEntries SourcePackageId Bool [ModuleEntries] Haddocks
 
-data Mod = Mod SourcePackageId GHC.ModuleName
+-- srcid is Nothing if it matches the re-export location
+data Exported = Exported (Maybe SourcePackageId) GHC.ModuleName
 
-mkMod :: GHC.DynFlags -> Module -> Mod
-mkMod dflags m = Mod
-  (sourcePackageId $ getPackageDetails dflags (moduleUnitId m))
-  (moduleName m)
+mkExported :: GHC.DynFlags -> UnitId -> Module -> Exported
+mkExported dflags unitid m =
+  let unitid' = moduleUnitId m
+   in Exported
+        (if unitid == unitid'
+           then Nothing
+           else Just . sourcePackageId $ getPackageDetails dflags unitid')
+        (moduleName m)
 
--- TODO don't include srcid if it matches the current module
-instance ToSexp Mod where
-  toSexp (Mod spid name) = alist
-    [ ("srcid", SexpString . unpackFS . coerce $ spid),
+instance ToSexp Exported where
+  toSexp (Exported spid name) = alist
+    [ ("srcid", toSexp $ unpackFS . coerce <$> spid),
       ("module", SexpString . moduleNameString $ name) ]
 
 instance ToSexp Entry where
