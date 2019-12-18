@@ -113,12 +113,12 @@ getSymbols unitid inplace haddocks exposed dirs = do
   let findHis dir = liftIO $ walkSuffix ".hi" dir
   his <- join <$> traverse findHis dirs
   dflags <- GHC.getSessionDynFlags
-  let spid = sourcePackageId $ getPackageDetails dflags unitid
+  let srcid = sourcePackageId $ getPackageDetails dflags unitid
   symbols <- catMaybes <$> traverse (hiToSymbols exposed) his
   let entries = uncurry mkEntries <$> symbols
       mkEntries m things = ModuleEntries (moduleName m) (renderThings things)
       renderThings things = catMaybes $ (uncurry $ tyrender dflags unitid) <$> things
-  pure $ PackageEntries spid inplace entries haddocks
+  pure $ PackageEntries srcid inplace entries haddocks
 
 -- for a .hi file returns the module and a list of all things (with types
 -- resolved) in that module and their original module if they are re-exported.
@@ -195,8 +195,8 @@ mkExported dflags unitid m =
         (moduleName m)
 
 instance ToSexp Exported where
-  toSexp (Exported spid name) = alist
-    [ ("srcid", toSexp $ unpackFS . coerce <$> spid),
+  toSexp (Exported srcid name) = alist
+    [ ("srcid", toSexp $ unpackFS . coerce <$> srcid),
       ("module", SexpString . moduleNameString $ name) ]
 
 instance ToSexp Entry where
@@ -229,9 +229,9 @@ instance ToSexp ModuleEntries where
       ]
 
 instance ToSexp PackageEntries where
-  toSexp (PackageEntries spid inplace modules haddocks) =
+  toSexp (PackageEntries srcid inplace modules haddocks) =
     alist
-      [ ("srcid", toSexp . unpackFS . coerce $ spid),
+      [ ("srcid", toSexp . unpackFS . coerce $ srcid),
         ("inplace", toSexp inplace),
         ("modules", toSexp modules),
         ("haddocks", toSexp haddocks) ]
