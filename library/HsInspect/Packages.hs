@@ -9,7 +9,7 @@ import Control.Monad (join, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.Coerce
 import Data.List (delete, nub, sort, (\\))
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, mapMaybe)
 import qualified Data.Set as Set
 import qualified DynFlags as GHC
 import FastString
@@ -21,7 +21,7 @@ import HsInspect.Util
 import HsInspect.Workarounds
 import Module (Module(..), ModuleName)
 import qualified PackageConfig as GHC
-import Packages (PackageState(..), getPackageDetails)
+import Packages (PackageState(..), lookupPackage)
 import qualified RdrName as GHC
 
 -- Similar to packunused / weeder, but more reliable (and doesn't require a
@@ -39,7 +39,7 @@ packages = do
   let home = GHC.thisPackage dflags
       used = delete home . nub . sort $ pkgs
       loaded = nub . sort . explicitPackages $ GHC.pkgState dflags
-      asNames unitids = GHC.packageName . getPackageDetails dflags <$> unitids
+      asNames unitids = GHC.packageName <$> mapMaybe (lookupPackage dflags) unitids
   pure $ PkgSummary (asNames used) (asNames $ loaded \\ used)
 
 findPackage :: GHC.GhcMonad m => ModuleName -> Maybe FastString -> m (Maybe GHC.UnitId)

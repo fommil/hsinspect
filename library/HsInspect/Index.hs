@@ -37,7 +37,7 @@ import Outputable (showPpr, showSDoc)
 import qualified Outputable as GHC
 import PackageConfig
 import qualified PackageConfig as GHC
-import Packages (explicitPackages, getPackageDetails, lookupPackage)
+import Packages (explicitPackages, lookupPackage)
 --import System.IO (hPutStrLn, stderr)
 import qualified PatSyn as GHC
 import TcEnv (tcLookup)
@@ -113,7 +113,7 @@ getSymbols unitid inplace haddocks exposed dirs = do
   let findHis dir = liftIO $ walkSuffix ".hi" dir
   his <- join <$> traverse findHis dirs
   dflags <- GHC.getSessionDynFlags
-  let srcid = sourcePackageId $ getPackageDetails dflags unitid
+  let srcid = sourcePackageId <$> lookupPackage dflags unitid
   symbols <- catMaybes <$> traverse (hiToSymbols exposed) his
   let entries = uncurry mkEntries <$> symbols
       mkEntries m things = ModuleEntries (moduleName m) (renderThings things)
@@ -180,7 +180,7 @@ data ModuleEntries = ModuleEntries GHC.ModuleName [Entry]
 type Haddocks = [FilePath]
 
 -- Bool indicates if this is an -inplace package
-data PackageEntries = PackageEntries SourcePackageId Bool [ModuleEntries] Haddocks
+data PackageEntries = PackageEntries (Maybe SourcePackageId) Bool [ModuleEntries] Haddocks
 
 -- srcid is Nothing if it matches the re-export location
 data Exported = Exported (Maybe SourcePackageId) GHC.ModuleName
@@ -191,7 +191,7 @@ mkExported dflags unitid m =
    in Exported
         (if unitid == unitid'
            then Nothing
-           else Just . sourcePackageId $ getPackageDetails dflags unitid')
+           else sourcePackageId <$> lookupPackage dflags unitid')
         (moduleName m)
 
 instance ToSexp Exported where
@@ -231,8 +231,7 @@ instance ToSexp ModuleEntries where
 instance ToSexp PackageEntries where
   toSexp (PackageEntries srcid inplace modules haddocks) =
     alist
-      [ ("srcid", toSexp . unpackFS . coerce $ srcid),
+      [ ("srcid", toSexp $ unpackFS . coerce <$> srcid),
         ("inplace", toSexp inplace),
         ("modules", toSexp modules),
         ("haddocks", toSexp haddocks) ]
-
