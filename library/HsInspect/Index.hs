@@ -129,6 +129,8 @@ hiToSymbols
   -> m (Maybe (GHC.Module, [(Maybe GHC.Module, GHC.TcTyThing)]))
 hiToSymbols exposed hi = (join <$>) <$> withHi hi $ \iface -> do
   let m = mi_module iface
+  -- FIXME we should include all modules from inplace packages, otherwise the
+  -- user is unable to jump-to-definition within the same multi-package project.
   if not $ Set.member (GHC.moduleName m) exposed
     then pure Nothing
     else do
@@ -185,6 +187,8 @@ data PackageEntries = PackageEntries (Maybe SourcePackageId) Bool [ModuleEntries
 -- srcid is Nothing if it matches the re-export location
 data Exported = Exported (Maybe SourcePackageId) GHC.ModuleName
 
+-- FIXME Exported should follow re-exports until they reach the original symbol.
+-- Otherwise editors have to do this.
 mkExported :: GHC.DynFlags -> UnitId -> Module -> Exported
 mkExported dflags unitid m =
   let unitid' = moduleUnitId m
