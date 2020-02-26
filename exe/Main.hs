@@ -62,6 +62,9 @@ main = do
            , GHC.warningFlags = EnumSet.empty
            , GHC.fatalWarningFlags = EnumSet.empty
            }
+    -- FIXME: don't infer the module names from the ghcargs, instead scan the
+    -- source directories. This should make us more robust against incremental
+    -- compilation where the module list is not updated.
     let mkTarget m = GHC.Target (GHC.TargetModule $ GHC.mkModuleName m) True Nothing
     GHC.setTargets $ mkTarget <$> filter (isUpper . head) ghcargs
     let respond rest (S.filterNil . S.toSexp -> a) = liftIO . putStrLn $
