@@ -76,6 +76,27 @@ importsOnly homes file = do
   -- HsSrcFile here broken on 8.8.1
   pure $ (modname, Target (TargetFile file Nothing) False (Just (trimmed, ts)))
 
+parseModuleName :: GHC.GhcMonad m => FilePath -> m (Maybe GHC.ModuleName)
+parseModuleName file = do
+  sess <- GHC.getSession
+#if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
+  pp <- liftIO $ preprocess sess file Nothing Nothing
+  let (dflags, tmp) = case pp of
+        Left _ -> error $ "preprocessing failed " <> show file
+        Right success -> success
+#else
+  (dflags, tmp) <- liftIO $ preprocess sess (file, Nothing)
+#endif
+  full <- liftIO $ hGetStringBuffer tmp
+  when (".hscpp" `isSuffixOf` tmp) $
+    liftIO . removeFile $ tmp
+  let pragmas = getOptions dflags full file
+      loc  = mkRealSrcLoc (mkFastString file) 1 1
+  (dflags', _, _) <- parseDynamicFilePragma dflags pragmas
+  pure $ case unP parseHeader (mkPState dflags' full loc) of
+    POk _ (L _ hsmod) -> unLoc <$> GHC.hsmodName hsmod
+    _ -> error  $ "parseHeader failed for " <> file
+
 -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
 minf_rdr_env' :: GHC.GhcMonad m => GHC.ModuleName -> m GlobalRdrEnv
 minf_rdr_env' m = do
