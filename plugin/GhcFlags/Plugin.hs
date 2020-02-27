@@ -45,15 +45,12 @@ install _ core = do
   unless written write
   pure core
 
--- TODO support incremental compilation
---
 -- This only supports ghc being called with directories and home modules. That
 -- means we don't support incremental compilation where ghc is called with
 -- explicit filenames and dependencies. There are cases where the .ghc.flags may
--- get out of date, e.g. adding / removing home modules. To handle those cases
--- we need to detect them and write to a different (per-file) .ghc.flags
--- location. Text editors need to be aware of both kinds of ghc flags files and
--- use the most recent.
+-- get out of date, e.g. adding / removing home modules. The simple solution is
+-- that tools using .ghc.flags should recalculate the home modules if they want
+-- to support incremental compilation.
 write :: (MonadIO m, GHC.HasDynFlags m) => m ()
 write = do
   dflags <- GHC.getDynFlags

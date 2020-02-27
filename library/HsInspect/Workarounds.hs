@@ -26,7 +26,6 @@ import StringBuffer
 import System.Directory (getModificationTime, removeFile)
 import TcRnTypes (tcg_rdr_env)
 
--- TODO avoid this codepath in 8.8.2+
 -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
 importsOnly :: GHC.GhcMonad m => Set GHC.ModuleName -> FilePath -> m (Maybe GHC.ModuleName, Target)
 importsOnly homes file = do

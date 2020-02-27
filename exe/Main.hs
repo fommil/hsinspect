@@ -6,7 +6,6 @@ module Main where
 import qualified Config as GHC
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Char (isUpper)
 import Data.List (find, isPrefixOf)
 import DynFlags (parseDynamicFlagsCmdLine, updOptLevel)
 import qualified EnumSet as EnumSet
@@ -16,6 +15,7 @@ import HsInspect.Index
 import HsInspect.Json
 import HsInspect.Packages
 import HsInspect.Sexp as S
+import HsInspect.Util
 import System.Environment (getArgs)
 import System.Exit
 
@@ -53,7 +53,7 @@ main = do
       flags' = filter (not . ("-B" `isPrefixOf`)) flags
   GHC.runGhc libdir $ do
     dflags <- GHC.getSessionDynFlags
-    (updOptLevel 0 -> dflags', (GHC.unLoc <$>) -> ghcargs, _) <-
+    (updOptLevel 0 -> dflags', (GHC.unLoc <$>) -> _ghcargs, _) <-
       liftIO $ parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> flags')
     void $ GHC.setSessionDynFlags dflags'
            { GHC.hscTarget = GHC.HscInterpreted -- HscNothing compiles home modules, dunno why
@@ -62,11 +62,14 @@ main = do
            , GHC.warningFlags = EnumSet.empty
            , GHC.fatalWarningFlags = EnumSet.empty
            }
-    -- FIXME: don't infer the module names from the ghcargs, instead scan the
-    -- source directories. This should make us more robust against incremental
-    -- compilation where the module list is not updated.
-    let mkTarget m = GHC.Target (GHC.TargetModule $ GHC.mkModuleName m) True Nothing
-    GHC.setTargets $ mkTarget <$> filter (isUpper . head) ghcargs
+
+    -- The caller may have provided a list of home modules, but we do not trust
+    -- them because the ghcflags plugin does not keep the flags up to date for
+    -- incremental compiles.
+    let mkTarget m = GHC.Target (GHC.TargetModule m) True Nothing
+    homeModules <- inferHomeModules
+    GHC.setTargets $ mkTarget <$> homeModules
+
     let respond rest (S.filterNil . S.toSexp -> a) = liftIO . putStrLn $
           if (elem "--json" rest)
           then case sexpToJson a of

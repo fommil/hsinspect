@@ -28,6 +28,7 @@ common deps
     , base        >=4.11 && <5
     , containers
     , directory
+    , filepath
     , ghc
     , ghc-boot
     , time
