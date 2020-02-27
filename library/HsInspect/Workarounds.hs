@@ -32,8 +32,8 @@ import OccName (emptyOccEnv)
 import TcRnTypes (tcg_rdr_env)
 #endif
 
-importsOnly :: GHC.GhcMonad m => Set GHC.ModuleName -> FilePath -> m (Maybe GHC.ModuleName, Target)
-importsOnly homes file = do
+parseHeader' :: GHC.GhcMonad m => FilePath -> m ([Located String], ParseResult (Located (GHC.HsModule GHC.GhcPs)))
+parseHeader' file = do
   sess <- GHC.getSession
 #if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
   pp <- liftIO $ preprocess sess file Nothing Nothing
@@ -48,12 +48,19 @@ importsOnly homes file = do
     liftIO . removeFile $ tmp
   let pragmas = getOptions dflags full file
       loc  = mkRealSrcLoc (mkFastString file) 1 1
-      allowed (L _ (ImportDecl{ideclName})) = Set.notMember (unLoc ideclName) homes
+  (dflags', _, _) <- parseDynamicFilePragma dflags pragmas
+  let header = unP parseHeader (mkPState dflags' full loc)
+  pure (pragmas, header)
+
+importsOnly :: GHC.GhcMonad m => Set GHC.ModuleName -> FilePath -> m (Maybe GHC.ModuleName, Target)
+importsOnly homes file = do
+  dflags <- GHC.getSessionDynFlags
+  (pragmas, header) <- parseHeader' file
+  let allowed (L _ (ImportDecl{ideclName})) = Set.notMember (unLoc ideclName) homes
 #if MIN_VERSION_GLASGOW_HASKELL(8,6,0,0)
       allowed (L _ (XImportDecl _)) = False
 #endif
-  (dflags', _, _) <- parseDynamicFilePragma dflags pragmas
-  (modname, trimmed) <- case unP parseHeader (mkPState dflags' full loc) of
+  (modname, trimmed) <- case header of
     POk _ (L _ hsmod) -> do
       let modname = unLoc <$> GHC.hsmodName hsmod
           extra =
@@ -66,7 +73,7 @@ importsOnly homes file = do
           pragmas' = delete "-XCPP" (unLoc <$> pragmas)
           contents =
             "{-# OPTIONS_GHC " <> (intercalate " " pragmas') <> " #-}\n" <>
-            showPpr dflags' (hsmod { GHC.hsmodExports = Nothing
+            showPpr dflags (hsmod { GHC.hsmodExports = Nothing
                                    , GHC.hsmodImports = imps }) <>
             extra
       pure (modname, stringToStringBuffer contents)
@@ -78,23 +85,9 @@ importsOnly homes file = do
 
 parseModuleName :: GHC.GhcMonad m => FilePath -> m (Maybe GHC.ModuleName)
 parseModuleName file = do
-  sess <- GHC.getSession
-#if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
-  pp <- liftIO $ preprocess sess file Nothing Nothing
-  let (dflags, tmp) = case pp of
-        Left _ -> error $ "preprocessing failed " <> show file
-        Right success -> success
-#else
-  (dflags, tmp) <- liftIO $ preprocess sess (file, Nothing)
-#endif
-  full <- liftIO $ hGetStringBuffer tmp
-  when (".hscpp" `isSuffixOf` tmp) $
-    liftIO . removeFile $ tmp
-  let pragmas = getOptions dflags full file
-      loc  = mkRealSrcLoc (mkFastString file) 1 1
-  (dflags', _, _) <- parseDynamicFilePragma dflags pragmas
-  pure $ case unP parseHeader (mkPState dflags' full loc) of
-    POk _ (L _ hsmod) -> unLoc <$> GHC.hsmodName hsmod
+  (_, headers) <- parseHeader' file
+  case headers of
+    POk _ (L _ hsmod) -> pure $ unLoc <$> GHC.hsmodName hsmod
     _ -> error  $ "parseHeader failed for " <> file
 
 -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
