@@ -32,13 +32,9 @@ import OccName (emptyOccEnv)
 import TcRnTypes (tcg_rdr_env)
 #endif
 
--- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
 importsOnly :: GHC.GhcMonad m => Set GHC.ModuleName -> FilePath -> m (Maybe GHC.ModuleName, Target)
 importsOnly homes file = do
   sess <- GHC.getSession
-  -- NOTE: the behaviour of preprocess changed in 8.8.1 and it no longer reads
-  -- and sets LANGUAGE pragamas from in header of the file. Since this function
-  -- is no longer needed in 8.8.2 we don't bother fixing this.
 #if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
   pp <- liftIO $ preprocess sess file Nothing Nothing
   let (dflags, tmp) = case pp of
