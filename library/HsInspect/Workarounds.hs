@@ -78,7 +78,22 @@ importsOnly homes file = do
 minf_rdr_env' :: GHC.GhcMonad m => GHC.ModuleName -> m GlobalRdrEnv
 minf_rdr_env' m = do
   modSum <- GHC.getModSummary m
-  pmod <- GHC.parseModule modSum
+
+  -- WORKAROUND https://mail.haskell.org/pipermail/ghc-devs/2020-February/018663.html
+#if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
+  dflags <- GHC.getSessionDynFlags
+  let file = GHC.ms_hspp_file modSum
+  buf <- case GHC.ms_hspp_buf modSum of
+        Nothing -> liftIO $ hGetStringBuffer file
+        Just b -> pure b
+  let pragmas = getOptions dflags buf file
+  (dflags', _, _) <- parseDynamicFilePragma dflags pragmas
+  let modSum' = modSum { GHC.ms_hspp_opts = dflags' }
+#else
+  let modSum' = modSum
+#endif
+
+  pmod <- GHC.parseModule modSum'
   tmod <- GHC.typecheckModule pmod
   let (tc_gbl_env, _) = GHC.tm_internals_ tmod
   pure $ tcg_rdr_env tc_gbl_env

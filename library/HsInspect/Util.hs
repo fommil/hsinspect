@@ -1,5 +1,4 @@
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE ViewPatterns #-}
 
 module HsInspect.Util where
 
@@ -7,8 +6,13 @@ import Data.List (isSuffixOf)
 import Data.Maybe (catMaybes)
 import Data.Set (Set)
 import qualified Data.Set as Set
+import DynFlags (unsafeGlobalDynFlags)
 import qualified GHC as GHC
+import Outputable (Outputable, showPpr)
 import System.Directory (doesDirectoryExist, listDirectory)
+
+showGhc :: (Outputable a) => a -> String
+showGhc = showPpr unsafeGlobalDynFlags
 
 getTargetModules :: GHC.GhcMonad m => m (Set GHC.ModuleName)
 getTargetModules = do

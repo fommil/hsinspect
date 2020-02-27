@@ -9,12 +9,11 @@ module HsInspect.Imports
 where
 
 import Data.Maybe (fromJust)
-import DynFlags (unsafeGlobalDynFlags)
 import qualified GHC as GHC
 import HscTypes (TargetId(..))
 import HsInspect.Sexp
 import HsInspect.Workarounds
-import Outputable (Outputable, showPpr)
+import HsInspect.Util
 import RdrName (GlobalRdrElt(..), ImpDeclSpec(..), ImportSpec(..),
                 globalRdrEnvElts)
 
@@ -33,9 +32,6 @@ imports file = do
 
   rdr_env <- minf_rdr_env' m
   pure $ describe =<< globalRdrEnvElts rdr_env
-
-showGhc :: (Outputable a) => a -> String
-showGhc = showPpr unsafeGlobalDynFlags
 
 describe :: GlobalRdrElt -> [Qualified]
 describe GRE {gre_name, gre_imp} = describe' <$> gre_imp
