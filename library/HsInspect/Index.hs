@@ -30,7 +30,6 @@ import HsInspect.Json ()
 import HsInspect.Sexp
 import HsInspect.Util
 import qualified Id as GHC
-import Module (Module(..), moduleNameString)
 import Module as GHC
 import qualified Name as GHC
 import Outputable (showPpr, showSDoc)
