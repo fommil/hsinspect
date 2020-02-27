@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module HsInspect.Workarounds where
 
@@ -23,7 +24,13 @@ import RdrName (GlobalRdrEnv)
 import SrcLoc
 import StringBuffer
 import System.Directory (getModificationTime, removeFile)
+
+#if MIN_VERSION_GLASGOW_HASKELL(8,8,2,0)
+import Data.Maybe (fromJust, fromMaybe)
+import OccName (emptyOccEnv)
+#else
 import TcRnTypes (tcg_rdr_env)
+#endif
 
 -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
 importsOnly :: GHC.GhcMonad m => Set GHC.ModuleName -> FilePath -> m (Maybe GHC.ModuleName, Target)
@@ -76,8 +83,16 @@ importsOnly homes file = do
 -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
 minf_rdr_env' :: GHC.GhcMonad m => GHC.ModuleName -> m GlobalRdrEnv
 minf_rdr_env' m = do
+#if MIN_VERSION_GLASGOW_HASKELL(8,8,2,0)
+  mo <- GHC.findModule m Nothing
+  (fromJust -> mi) <- GHC.getModuleInfo mo
+  pure . fromMaybe emptyOccEnv $ GHC.modInfoRdrEnv mi
+#else
   modSum <- GHC.getModSummary m
   pmod <- GHC.parseModule modSum
   tmod <- GHC.typecheckModule pmod
   let (tc_gbl_env, _) = GHC.tm_internals_ tmod
   pure $ tcg_rdr_env tc_gbl_env
+#endif
+
+

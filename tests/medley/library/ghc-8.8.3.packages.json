@@ -1,9 +1,9 @@
 {
     "unused": [
+        "contravariant",
         "ghcflags"
     ],
     "used": [
-        "base",
-        "contravariant"
+        "base"
     ]
 }

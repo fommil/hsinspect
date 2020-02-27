@@ -12,7 +12,8 @@
                 ],
                 "module": "Medley.Wobble"
             }
-        ]
+        ],
+        "srcid": "medley-0.0.1"
     },
     {
         "haddocks": [
