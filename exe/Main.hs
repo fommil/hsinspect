@@ -13,7 +13,6 @@ import qualified GHC as GHC
 import HsInspect.Imports
 import HsInspect.Index
 import HsInspect.Json
-import HsInspect.Packages
 import HsInspect.Sexp as S
 import HsInspect.Util
 import System.Environment (getArgs)
@@ -33,8 +32,7 @@ help =
   "  imports /path/to/file.hs - list the qualified imports for the file\n" ++
   "                             along with their locally qualified (and\n" ++
   "                             unqualified) names.\n" ++
-  "  index                    - list all dependency packages, modules, terms and types.\n" ++
-  "  packages /path/to/dir    - list all packages that are referenced by sources in this dir.\n"
+  "  index                    - list all dependency packages, modules, terms and types.\n"
 
 -- Possible backends:
 --
@@ -82,9 +80,6 @@ main = do
         respond rest quals
       "index" : rest -> do
         hits <- index
-        respond rest hits
-      "packages" : rest -> do
-        hits <- packages
         respond rest hits
       _ ->
         liftIO $ error "invalid parameters"
