@@ -7,6 +7,7 @@ import qualified Config as GHC
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.List (find, isPrefixOf)
+import Data.Maybe (catMaybes)
 import DynFlags (parseDynamicFlagsCmdLine, updOptLevel)
 import qualified EnumSet as EnumSet
 import qualified GHC as GHC
@@ -16,6 +17,7 @@ import HsInspect.Json
 import HsInspect.Packages
 import HsInspect.Sexp as S
 import HsInspect.Util
+import HsInspect.Workarounds
 import System.Environment (getArgs)
 import System.Exit
 
@@ -88,6 +90,11 @@ main = do
         respond rest hits
       _ ->
         liftIO $ error "invalid parameters"
+
+inferHomeModules :: GHC.GhcMonad m => m [GHC.ModuleName]
+inferHomeModules = do
+  files <- homeSources
+  catMaybes <$> traverse parseModuleName' files
 
 -- removes the "+RTS ... -RTS" sections
 filterFlags :: [String] -> [String]

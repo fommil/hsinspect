@@ -83,8 +83,8 @@ importsOnly homes file = do
   -- since 0f9ec9d1ff can't use Phase
   pure $ (modname, Target (TargetFile file Nothing) False (Just (trimmed, ts)))
 
-parseModuleName :: GHC.GhcMonad m => FilePath -> m (Maybe GHC.ModuleName)
-parseModuleName file = do
+parseModuleName' :: GHC.GhcMonad m => FilePath -> m (Maybe GHC.ModuleName)
+parseModuleName' file = do
   (_, headers) <- parseHeader' file
   case headers of
     POk _ (L _ hsmod) -> pure $ unLoc <$> GHC.hsmodName hsmod

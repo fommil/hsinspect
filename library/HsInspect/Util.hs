@@ -9,18 +9,15 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import DynFlags (unsafeGlobalDynFlags)
 import qualified GHC as GHC
-import HsInspect.Workarounds
 import Outputable (Outputable, showPpr)
 import System.Directory (doesDirectoryExist, listDirectory, makeAbsolute)
 
-inferHomeModules :: GHC.GhcMonad m => m [GHC.ModuleName]
-inferHomeModules = do
+homeSources :: GHC.GhcMonad m => m [FilePath]
+homeSources = do
   dflags <- GHC.getSessionDynFlags
   paths <- liftIO . traverse makeAbsolute $ GHC.importPaths dflags
-  let infer dir = do
-        files <- liftIO $ walkSuffix ".hs" dir
-        traverse parseModuleName files
-  nub . catMaybes . concat <$> traverse infer paths
+  let infer dir = liftIO $ walkSuffix ".hs" dir
+  nub . concat <$> traverse infer paths
 
 showGhc :: (Outputable a) => a -> String
 showGhc = showPpr unsafeGlobalDynFlags

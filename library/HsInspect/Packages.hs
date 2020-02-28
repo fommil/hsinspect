@@ -8,8 +8,9 @@ module HsInspect.Packages (packages, PkgSummary) where
 import Control.Monad (join, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.Coerce
-import Data.List (delete, nub, sort, (\\))
+import Data.List (delete, nub, nubBy, sort, (\\))
 import Data.Maybe (catMaybes, mapMaybe)
+import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified DynFlags as GHC
 import FastString
@@ -28,19 +29,29 @@ import qualified RdrName as GHC
 -- separate -ddump-minimal-imports pass).
 packages :: GHC.GhcMonad m => m PkgSummary
 packages = do
-  mods <- Set.toList <$> getTargetModules
+  homes <- getTargetModules
+  targetsImportsOnly homes
 
   dflags <- GHC.getSessionDynFlags
   void $ GHC.setSessionDynFlags dflags { GHC.ghcMode = GHC.CompManager }
   _ <- GHC.load $ GHC.LoadAllTargets
 
-  imps <- nub . join <$> traverse getImports mods
+  imps <- nub . join <$> traverse getImports (Set.toList homes)
   pkgs <- catMaybes <$> traverse (uncurry findPackage) imps
   let home = GHC.thisPackage dflags
       used = delete home . nub . sort $ pkgs
       loaded = nub . sort . explicitPackages $ GHC.pkgState dflags
       asNames unitids = GHC.packageName <$> mapMaybe (lookupPackage dflags) unitids
   pure $ PkgSummary (asNames used) (asNames $ loaded \\ used)
+
+targetsImportsOnly :: GHC.GhcMonad m => Set GHC.ModuleName -> m ()
+targetsImportsOnly homes = do
+  files <- homeSources
+  trimmed <- traverse (importsOnly homes) files
+  -- side effect: multiple modules with no name will be deduped
+  let fstEq (n1, _) (n2, _) = n1 == n2
+      targets = (snd <$>) . nubBy fstEq $ trimmed
+  GHC.setTargets targets
 
 findPackage :: GHC.GhcMonad m => ModuleName -> Maybe FastString -> m (Maybe GHC.UnitId)
 findPackage m mp = do
