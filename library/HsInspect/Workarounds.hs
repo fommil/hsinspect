@@ -80,7 +80,7 @@ importsOnly homes file = do
     _ -> error  $ "parseHeader failed for " <> file
 
   ts <- liftIO $ getModificationTime file
-  -- HsSrcFile here broken on 8.8.1
+  -- since 0f9ec9d1ff can't use Phase
   pure $ (modname, Target (TargetFile file Nothing) False (Just (trimmed, ts)))
 
 parseModuleName :: GHC.GhcMonad m => FilePath -> m (Maybe GHC.ModuleName)
