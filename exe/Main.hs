@@ -7,7 +7,7 @@ import qualified Config as GHC
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.List (find, isPrefixOf)
-import Data.Maybe (catMaybes)
+import Data.Maybe (fromMaybe)
 import DynFlags (parseDynamicFlagsCmdLine, updOptLevel)
 import qualified EnumSet as EnumSet
 import qualified GHC as GHC
@@ -94,7 +94,8 @@ main = do
 inferHomeModules :: GHC.GhcMonad m => m [GHC.ModuleName]
 inferHomeModules = do
   files <- homeSources
-  catMaybes <$> traverse parseModuleName' files
+  mmns <- traverse parseModuleName' files
+  pure $ (fromMaybe $ GHC.mkModuleName "Main") <$> mmns
 
 -- removes the "+RTS ... -RTS" sections
 filterFlags :: [String] -> [String]
