@@ -49,10 +49,9 @@ parseHeader' file = do
   let pragmas = getOptions dflags full file
       loc  = mkRealSrcLoc (mkFastString file) 1 1
   (dflags', _, _) <- parseDynamicFilePragma dflags pragmas
-  let header = unP parseHeader (mkPState dflags' full loc)
-  case header of
+  case unP parseHeader (mkPState dflags' full loc) of
     POk _ (L _ hsmod) -> pure (unLoc <$> pragmas, hsmod)
-    _ -> error  $ "parseHeader failed for " <> file
+    _ -> error $ "parseHeader failed for " <> file
 
 importsOnly :: GHC.GhcMonad m => Set GHC.ModuleName -> FilePath -> m (Maybe GHC.ModuleName, Target)
 importsOnly homes file = do
