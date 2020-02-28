@@ -55,6 +55,7 @@ library
     HsInspect.Imports
     HsInspect.Index
     HsInspect.Json
+    HsInspect.Packages
     HsInspect.Sexp
     HsInspect.Util
     HsInspect.Workarounds

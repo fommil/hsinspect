@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# List all redundant packages in this project.
+
+# To be run after compiling the project and having generated .ghc.flags files.
+
+# Known caveats:
+#
+# 1. some packages appear unused but compilation fails without them (e.g. protolens-runtime)
+# 2. only one source dir per local package is supported
+# 3. directories containing multiple Main will fail
+# 4. files that don't declare a module name will be ignored (e.g. test runners)
+
+BASE=$PWD
+
+HSINSPECT=$(cabal exec -v0 which -- hsinspect)
+
+for P in $(find . -path ./dist-newstyle -prune -o -name "*.cabal" -print) ; do
+    cd "$BASE"
+    cd "$(dirname $P)"
+    echo "$PWD"
+
+    for C in $(find . -name .ghc.flags) ; do
+        S="$(dirname $C)"
+        echo "  $S"
+        OUT="$S/.hsinspect.unused"
+        if [ -f "$OUT" ] ; then
+            rm "$OUT"
+        fi
+        REPORT=$($HSINSPECT packages --json -- $(cat "$C"))
+
+        if [ $? -eq 0 ] ; then
+            UNUSED=$(echo $REPORT | jq '.unused')
+            if [ "$UNUSED" != "[]" ] ; then
+                echo "$UNUSED" > "$S/.hsinspect.unused"
+            fi
+        else
+            echo $REPORT
+        fi
+    done
+done
