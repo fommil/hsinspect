@@ -32,7 +32,7 @@ import OccName (emptyOccEnv)
 import TcRnTypes (tcg_rdr_env)
 #endif
 
-parseHeader' :: GHC.GhcMonad m => FilePath -> m ([Located String], ParseResult (Located (GHC.HsModule GHC.GhcPs)))
+parseHeader' :: GHC.GhcMonad m => FilePath -> m ([String], GHC.HsModule GHC.GhcPs)
 parseHeader' file = do
   sess <- GHC.getSession
 #if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
@@ -50,34 +50,33 @@ parseHeader' file = do
       loc  = mkRealSrcLoc (mkFastString file) 1 1
   (dflags', _, _) <- parseDynamicFilePragma dflags pragmas
   let header = unP parseHeader (mkPState dflags' full loc)
-  pure (pragmas, header)
+  case header of
+    POk _ (L _ hsmod) -> pure (unLoc <$> pragmas, hsmod)
+    _ -> error  $ "parseHeader failed for " <> file
 
 importsOnly :: GHC.GhcMonad m => Set GHC.ModuleName -> FilePath -> m (Maybe GHC.ModuleName, Target)
 importsOnly homes file = do
   dflags <- GHC.getSessionDynFlags
-  (pragmas, header) <- parseHeader' file
+  (pragmas, hsmod) <- parseHeader' file
   let allowed (L _ (ImportDecl{ideclName})) = Set.notMember (unLoc ideclName) homes
 #if MIN_VERSION_GLASGOW_HASKELL(8,6,0,0)
       allowed (L _ (XImportDecl _)) = False
 #endif
-  (modname, trimmed) <- case header of
-    POk _ (L _ hsmod) -> do
-      let modname = unLoc <$> GHC.hsmodName hsmod
-          extra =
-            if modname == Nothing || modname == (Just $ GHC.mkModuleName "Main")
-            then "\nmain = return ()"
-            else ""
-          imps = filter allowed $ GHC.hsmodImports hsmod
-          -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/issues/17066
-          --            cannot use CPP in combination with targetContents
-          pragmas' = delete "-XCPP" (unLoc <$> pragmas)
-          contents =
-            "{-# OPTIONS_GHC " <> (intercalate " " pragmas') <> " #-}\n" <>
-            showPpr dflags (hsmod { GHC.hsmodExports = Nothing
-                                   , GHC.hsmodImports = imps }) <>
-            extra
-      pure (modname, stringToStringBuffer contents)
-    _ -> error  $ "parseHeader failed for " <> file
+      modname = unLoc <$> GHC.hsmodName hsmod
+      extra =
+        if modname == Nothing || modname == (Just $ GHC.mkModuleName "Main")
+        then "\nmain = return ()"
+        else ""
+      imps = filter allowed $ GHC.hsmodImports hsmod
+      -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/issues/17066
+      --            cannot use CPP in combination with targetContents
+      pragmas' = delete "-XCPP" pragmas
+      contents =
+        "{-# OPTIONS_GHC " <> (intercalate " " pragmas') <> " #-}\n" <>
+        showPpr dflags (hsmod { GHC.hsmodExports = Nothing
+                               , GHC.hsmodImports = imps }) <>
+        extra
+      trimmed = stringToStringBuffer contents
 
   ts <- liftIO $ getModificationTime file
   -- since 0f9ec9d1ff can't use Phase
@@ -85,10 +84,8 @@ importsOnly homes file = do
 
 parseModuleName' :: GHC.GhcMonad m => FilePath -> m (Maybe GHC.ModuleName)
 parseModuleName' file = do
-  (_, headers) <- parseHeader' file
-  case headers of
-    POk _ (L _ hsmod) -> pure $ unLoc <$> GHC.hsmodName hsmod
-    _ -> error  $ "parseHeader failed for " <> file
+  (_, hsmod) <- parseHeader' file
+  pure $ unLoc <$> GHC.hsmodName hsmod
 
 -- WORKAROUND https://gitlab.haskell.org/ghc/ghc/merge_requests/1541
 minf_rdr_env' :: GHC.GhcMonad m => GHC.ModuleName -> m GlobalRdrEnv
