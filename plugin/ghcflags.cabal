@@ -10,8 +10,7 @@ copyright:     2019 Tseen She
 bug-reports:   https://gitlab.com/tseenshe/hsinspect/merge_requests
 tested-with:   GHC ^>=8.4.4 || ^>=8.6.5 || ^>=8.8.1
 category:      Building
-description:
-  Generate @.ghc.flags@ files during compilation
+description:   Generate @.ghc.flags@ files during compilation
 
 source-repository head
   type:     git
@@ -33,5 +32,5 @@ library
   import:          deps
   hs-source-dirs:  .
 
-  -- cabal-fmt: expand plugin
+  -- cabal-fmt: expand . -LICENSE
   exposed-modules: GhcFlags.Plugin
