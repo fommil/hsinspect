@@ -45,12 +45,12 @@
         "qual": "C.Predicate"
     },
     {
-        "full": "Prelude.zip",
-        "local": "zip"
-    },
-    {
         "full": "Medley.Wobble.wobble",
         "local": "wobble"
+    },
+    {
+        "full": "Prelude.zip",
+        "local": "zip"
     },
     {
         "full": "Data.Functor.Contravariant.contramap",
