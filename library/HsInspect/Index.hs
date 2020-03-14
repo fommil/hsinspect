@@ -115,6 +115,7 @@ getSymbols unitid inplace haddocks exposed dirs = do
   let srcid = sourcePackageId <$> lookupPackage dflags unitid
   symbols <- catMaybes <$> traverse (hiToSymbols exposed) his
   let entries = uncurry mkEntries <$> symbols
+      -- FIXME sort the entries for reliable CI testing
       mkEntries m things = ModuleEntries (moduleName m) (renderThings things)
       renderThings things = catMaybes $ (uncurry $ tyrender dflags unitid) <$> things
   pure $ PackageEntries srcid inplace entries haddocks

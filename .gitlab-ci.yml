@@ -1,4 +1,4 @@
-image: library/haskell:8.8.3
+image: registry.gitlab.com/tseenshe/hsinspect:8.8.3
 
 cache:
   paths:
@@ -7,6 +7,6 @@ cache:
 build_job:
   stage: build
   script:
-    - apt-get update -qq && apt-get install -y python3
-    - cabal v2-update
-    - ./tests.sh
+    - cabal update
+    - cabal configure -w ghc-8.6.5 -O0 && ./tests.sh
+    - cabal configure -w ghc-8.8.3 -O0 && ./tests.sh
