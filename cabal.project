@@ -1,4 +1,4 @@
-packages: ./, plugin, tests/medley
+packages: ./, plugin, tests/medley, lsp
 
 constraints: contravariant -tagged -semigroups -StateVar
 

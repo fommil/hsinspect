@@ -1,0 +1,16 @@
+#+TITLE: LSP Implementation
+#+AUTHOR: Tseen She
+#+DATE: 2020-03-14
+
+By implementing a part of https://microsoft.github.io/language-server-protocol/specification.html it should be fairly straightforward to implement a json-rpc server that shells out to hsinspect to provide
+
+- =signatureHelpProvider=
+- =executeCommandProvider= (to allow the user to invalidate the cache)
+- =completionProvider=
+- =definitionProvider=
+
+which are the basic features =haskell-tng= implements for Emacs, only less
+efficient and without all the bells and whistles like qualified importing, which
+isn't supported by LSP.
+
+It would be good to have a minimal dependency list, but to expedite development it is acceptable to use =haskell-lsp= and =haskell-lsp-types=

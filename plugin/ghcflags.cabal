@@ -7,8 +7,7 @@ license-file:  LICENSE
 author:        Tseen She
 maintainer:    Tseen She
 copyright:     2019 Tseen She
-bug-reports:   https://gitlab.com/tseenshe/hsinspect/merge_requests
-tested-with:   GHC ^>=8.4.4 || ^>=8.6.5 || ^>=8.8.1
+tested-with:   GHC ^>=8.4.4 || ^>=8.6.5 || ^>=8.8.3
 category:      Building
 description:   Generate @.ghc.flags@ files during compilation
 

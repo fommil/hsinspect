@@ -1,13 +1,12 @@
-image: library/haskell:8.6.5
+image: library/haskell:8.8.3
 
-# TODO fix the build, it's failing in CI
-
-# TODO matrix build
-# https://docs.gitlab.com/ce/ci/yaml/README.html
+cache:
+  paths:
+    - /root/.cabal
 
 build_job:
   stage: build
   script:
-    - apt-get update -qq && apt-get install -y python
+    - apt-get update -qq && apt-get install -y python3
     - cabal v2-update
     - ./tests.sh
