@@ -56,3 +56,6 @@ fi
 # test for exceptions...
 $HSINSPECT --help
 $HSINSPECT --version
+
+cd lsp
+cabal v2-run hspec

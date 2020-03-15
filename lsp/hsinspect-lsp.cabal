@@ -24,13 +24,16 @@ flag ghcflags
 
 common deps
   build-depends:
-    , aeson        ^>=1.4.6.0
-    , base         >=4.11     && <5
+    , aeson         ^>=1.4.6.0
+    , base          >=4.11     && <5
     , bytestring
     , directory
-    , haskell-lsp  ^>=0.20.0.1
+    , extra         ^>=1.7.1
+    , filepath
+    , haskell-lsp   ^>=0.20.0.1
     , process
     , text
+    , transformers
 
   ghc-options:      -Wall -Werror=missing-home-modules
   default-language: Haskell2010
@@ -51,7 +54,10 @@ library
   hs-source-dirs:  library
 
   -- cabal-fmt: expand library
-  exposed-modules: HsInspect.LSP.HsInspect
+  exposed-modules:
+    HsInspect.LSP.Context
+    HsInspect.LSP.HsInspect
+    HsInspect.LSP.Util
 
 test-suite hspec
   import:             deps

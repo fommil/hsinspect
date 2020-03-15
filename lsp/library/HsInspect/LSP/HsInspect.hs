@@ -12,42 +12,35 @@
 -- only ghcflags / hsinspect setup per project.
 module HsInspect.LSP.HsInspect where
 
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.Except (ExceptT(..))
 import Data.Aeson
 import qualified Data.ByteString.Char8 as C
 import Data.Char (toLower)
 import Data.Text (Text)
 import GHC.Generics
+import HsInspect.LSP.Context
+import HsInspect.LSP.Util
 import System.Directory (setCurrentDirectory)
-import System.Exit (ExitCode(..))
-import System.Process (readProcessWithExitCode)
-
-data Context = Context
-  { hsinspect :: FilePath
-  , package_dir :: FilePath
-  , ghcflags :: String
-  }
 
 data HsInspect m = HsInspect
-  { imports :: Context -> FilePath -> m (Either String [Import])
-  , index :: Context -> m (Either String [Package])
+  { imports :: Context -> FilePath -> m [Import]
+  , index :: Context -> m [Package]
   }
 
-mkHsInspect :: HsInspect IO
+mkHsInspect :: HsInspect ZIO
 mkHsInspect = HsInspect {..}
   where
-    imports :: Context -> FilePath -> IO (Either String [Import])
+    imports :: Context -> FilePath -> ZIO [Import]
     imports ctx hs = call ctx ["imports", hs]
-
-    index :: Context -> IO (Either String [Package])
+    index :: Context -> ZIO [Package]
     index ctx = call ctx ["index"]
 
-    call :: FromJSON a => Context -> [String] -> IO (Either String a)
+    call :: FromJSON a => Context -> [String] -> ZIO a
     call Context{hsinspect, package_dir, ghcflags} args = do
-      setCurrentDirectory package_dir
-      (code, stdout, stderr) <- readProcessWithExitCode hsinspect (args <> ["--json", "--", ghcflags]) ""
-      case code of
-        ExitFailure i -> pure . Left $ "exit code: " <> show i <> " stderr: " <> stderr
-        ExitSuccess -> pure . eitherDecodeStrict $ C.pack stdout
+      lift $ setCurrentDirectory package_dir
+      stdout <- shell hsinspect $ args <> ["--json", "--"] <> ghcflags
+      ExceptT . pure . eitherDecodeStrict' $ C.pack stdout
 
 data Import = Import
   { _local :: Maybe Text
