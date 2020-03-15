@@ -58,4 +58,4 @@ $HSINSPECT --help
 $HSINSPECT --version
 
 cd lsp
-cabal v2-run hspec
+cabal v2-run test

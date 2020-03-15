@@ -59,7 +59,7 @@ library
     HsInspect.LSP.HsInspect
     HsInspect.LSP.Util
 
-test-suite hspec
+test-suite test
   import:             deps
   hs-source-dirs:     test
   type:               exitcode-stdio-1.0
