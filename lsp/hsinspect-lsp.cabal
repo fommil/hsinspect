@@ -30,6 +30,7 @@ common deps
     , directory
     , haskell-lsp  ^>=0.20.0.1
     , process
+    , text
 
   ghc-options:      -Wall -Werror=missing-home-modules
   default-language: Haskell2010

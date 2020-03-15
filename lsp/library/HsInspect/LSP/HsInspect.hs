@@ -15,6 +15,7 @@ module HsInspect.LSP.HsInspect where
 import Data.Aeson
 import qualified Data.ByteString.Char8 as C
 import Data.Char (toLower)
+import Data.Text (Text)
 import GHC.Generics
 import System.Directory (setCurrentDirectory)
 import System.Exit (ExitCode(..))
@@ -49,41 +50,41 @@ mkHsInspect = HsInspect {..}
         ExitSuccess -> pure . eitherDecodeStrict $ C.pack stdout
 
 data Import = Import
-  { _local :: Maybe String
-  , _qual :: Maybe String
-  , _full :: String
+  { _local :: Maybe Text
+  , _qual :: Maybe Text
+  , _full :: Text
   } deriving (Eq, Show, Generic)
 
 data Package = Package
-  { _srcid :: Maybe String
-  , _inplace :: Maybe String -- bad Bool encoding
+  { _srcid :: Maybe Text
+  , _inplace :: Maybe Text -- bad Bool encoding
   , _modules :: Maybe [Module]
   , _haddocks :: Maybe [FilePath]
   } deriving (Eq, Show, Generic)
 
 data Module = Module
-  { _module :: String
+  { _module :: Text
   , _ids :: Maybe [Entry]
   } deriving (Eq, Show, Generic)
 
 data Entry =
     Id { _export :: Maybe Exported
-       , _name :: String
-       , _type :: String }
+       , _name :: Text
+       , _type :: Text }
   | Con { _export :: Maybe Exported
-        , _name :: String
-        , _type :: String }
+        , _name :: Text
+        , _type :: Text }
   | Pat { _export :: Maybe Exported
-        , _name :: String
-        , _type :: String }
+        , _name :: Text
+        , _type :: Text }
   | TyCon { _export :: Maybe Exported
-          , _type :: String
-          , _flavour :: String }
+          , _type :: Text
+          , _flavour :: Text }
   deriving (Eq, Show, Generic)
 
 data Exported = Exported
-  { _srcid :: (Maybe String)
-  , _module :: String
+  { _srcid :: (Maybe Text)
+  , _module :: Text
   } deriving (Eq, Show, Generic)
 
 jsonConventions :: Options
