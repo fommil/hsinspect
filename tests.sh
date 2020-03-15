@@ -6,11 +6,14 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
 # use cabal v2-configure to change ghc version
-cabal v2-build exe:hsinspect
+
+cabal v2-build --constraint="medley -uncompilable" all
+
 HSINSPECT=$(cabal v2-exec -v0 which -- hsinspect)
 GHC_VERSION=ghc-$(cabal v2-exec -v0 ghc -- --numeric-version)
 
 rm -rf dist-newstyle/build/*/*/medley-0.0.1
+rm -f dist-newstyle/packagedb/ghc-*/medley-0.0.1-inplace.conf
 
 cd tests
 
