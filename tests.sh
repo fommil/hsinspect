@@ -33,7 +33,7 @@ for t in * ; do
         $HSINSPECT imports "$f" -- $GHC_FLAGS > "$f.$GHC_VERSION.imports.sexp"
         $HSINSPECT imports "$f" --json -- $GHC_FLAGS | python3 -m json.tool --sort-keys > "$f.$GHC_VERSION.imports.json"
     done
-    $HSINSPECT index --json -- $GHC_FLAGS | sed "s|${HOME}[^\"]*\"|REDACTED\"|g" | sed "s|/opt/ghc/[^\"]*\"|REDACTED\"|g" | sed "s|^/builds/[^\"]*\"|REDACTED\"|g" | python3 -m json.tool --sort-keys > "library/$GHC_VERSION.index.json"
+    $HSINSPECT index --json -- $GHC_FLAGS | sed "s|${HOME}[^\"]*\"|REDACTED\"|g" | sed "s|\"/opt/ghc/[^\"]*\"|\"REDACTED\"|g" | sed "s|\"/builds/[^\"]*\"|\"REDACTED\"|g" | python3 -m json.tool --sort-keys > "library/$GHC_VERSION.index.json"
     # to generate haskell-tng test data
     # $HSINSPECT index -- $GHC_FLAGS | sed "s|${HOME}[^\"]*\"|REDACTED\"|g" > "library/$GHC_VERSION.index.sexp"
 
