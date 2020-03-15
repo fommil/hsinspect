@@ -15,7 +15,7 @@ import qualified ConLike as GHC
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Coerce
-import Data.List (isInfixOf)
+import Data.List (isInfixOf, sort)
 import Data.Maybe (catMaybes, mapMaybe, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -114,9 +114,8 @@ getSymbols unitid inplace haddocks exposed dirs = do
   dflags <- GHC.getSessionDynFlags
   let srcid = sourcePackageId <$> lookupPackage dflags unitid
   symbols <- catMaybes <$> traverse (hiToSymbols exposed) his
-  let entries = uncurry mkEntries <$> symbols
-      -- FIXME sort the entries for reliable CI testing
-      mkEntries m things = ModuleEntries (moduleName m) (renderThings things)
+  let entries = sort $ uncurry mkEntries <$> symbols
+      mkEntries m things = ModuleEntries (moduleName m) (sort $ renderThings things)
       renderThings things = catMaybes $ (uncurry $ tyrender dflags unitid) <$> things
   pure $ PackageEntries srcid inplace entries haddocks
 
@@ -170,8 +169,10 @@ data Entry = IdEntry (Maybe Exported) String String -- ^ name type
            | ConEntry (Maybe Exported) String String -- ^ name type
            | PatSynEntry (Maybe Exported) String String -- ^ name orig
            | TyConEntry (Maybe Exported) String String -- ^ type flavour
+  deriving (Eq, Ord)
 
 data ModuleEntries = ModuleEntries GHC.ModuleName [Entry]
+  deriving (Eq, Ord)
 
 -- The haddocks serve a dual purpose: not only do they point to where haddocks
 -- might be, they give a hint to the text editor where the sources for this
@@ -186,6 +187,7 @@ data PackageEntries = PackageEntries (Maybe SourcePackageId) Bool [ModuleEntries
 
 -- srcid is Nothing if it matches the re-export location
 data Exported = Exported (Maybe SourcePackageId) GHC.ModuleName
+  deriving (Eq, Ord)
 
 -- TODO Exported should follow re-exports until they reach the original symbol.
 -- Otherwise editors have to do this.
