@@ -8,12 +8,13 @@ module HsInspect.Imports
   )
 where
 
+import Data.List (sort)
 import Data.Maybe (fromJust)
 import qualified GHC as GHC
 import HscTypes (TargetId(..))
 import HsInspect.Sexp
-import HsInspect.Workarounds
 import HsInspect.Util
+import HsInspect.Workarounds
 import RdrName (GlobalRdrElt(..), ImpDeclSpec(..), ImportSpec(..),
                 globalRdrEnvElts)
 
@@ -31,7 +32,7 @@ imports file = do
   _ <- GHC.load $ GHC.LoadUpTo m
 
   rdr_env <- minf_rdr_env' m
-  pure $ describe =<< globalRdrEnvElts rdr_env
+  pure . sort $ describe =<< globalRdrEnvElts rdr_env
 
 describe :: GlobalRdrElt -> [Qualified]
 describe GRE {gre_name, gre_imp} = describe' <$> gre_imp
@@ -56,7 +57,7 @@ data Qualified
       (Maybe String)
       (Maybe String)
       String
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
 
 instance ToSexp Qualified where
   toSexp (Qualified ln lqn fqn) =

@@ -46,7 +46,7 @@ done
 cd "$SCRIPT_DIR"
 if ! git diff --quiet -- tests ; then
     echo "FAILED"
-    git diff -- tests
+    git --no-pager diff -- tests
     exit 1
 fi
 

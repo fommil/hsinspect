@@ -1,13 +1,43 @@
 [
     {
+        "full": "Data.Functor.Contravariant.$<",
+        "local": "$<",
+        "qual": "C.$<"
+    },
+    {
+        "full": "Data.Functor.Contravariant.>$",
+        "local": ">$",
+        "qual": "C.>$"
+    },
+    {
+        "full": "Data.Functor.Contravariant.>$$<",
+        "local": ">$$<",
+        "qual": "C.>$$<"
+    },
+    {
+        "full": "Data.Functor.Contravariant.>$<",
+        "local": ">$<",
+        "qual": "C.>$<"
+    },
+    {
+        "full": "Data.Functor.Contravariant.Comparison",
+        "local": "Comparison",
+        "qual": "C.Comparison"
+    },
+    {
+        "full": "Data.Functor.Contravariant.Comparison",
+        "local": "Comparison",
+        "qual": "C.Comparison"
+    },
+    {
         "full": "Data.Functor.Contravariant.Contravariant",
         "local": "Contravariant",
         "qual": "C.Contravariant"
     },
     {
-        "full": "Data.Functor.Contravariant.Comparison",
-        "local": "Comparison",
-        "qual": "C.Comparison"
+        "full": "Data.Functor.Contravariant.Equivalence",
+        "local": "Equivalence",
+        "qual": "C.Equivalence"
     },
     {
         "full": "Data.Functor.Contravariant.Equivalence",
@@ -20,21 +50,6 @@
         "qual": "C.Op"
     },
     {
-        "full": "Data.Functor.Contravariant.Predicate",
-        "local": "Predicate",
-        "qual": "C.Predicate"
-    },
-    {
-        "full": "Data.Functor.Contravariant.Comparison",
-        "local": "Comparison",
-        "qual": "C.Comparison"
-    },
-    {
-        "full": "Data.Functor.Contravariant.Equivalence",
-        "local": "Equivalence",
-        "qual": "C.Equivalence"
-    },
-    {
         "full": "Data.Functor.Contravariant.Op",
         "local": "Op",
         "qual": "C.Op"
@@ -45,17 +60,29 @@
         "qual": "C.Predicate"
     },
     {
-        "full": "Medley.Wobble.wobble",
-        "local": "wobble"
+        "full": "Data.Functor.Contravariant.Predicate",
+        "local": "Predicate",
+        "qual": "C.Predicate"
     },
     {
-        "full": "Prelude.zip",
-        "local": "zip"
+        "full": "Data.Functor.Contravariant.comparisonEquivalence",
+        "local": "comparisonEquivalence",
+        "qual": "C.comparisonEquivalence"
     },
     {
         "full": "Data.Functor.Contravariant.contramap",
         "local": "contramap",
         "qual": "C.contramap"
+    },
+    {
+        "full": "Data.Functor.Contravariant.defaultComparison",
+        "local": "defaultComparison",
+        "qual": "C.defaultComparison"
+    },
+    {
+        "full": "Data.Functor.Contravariant.defaultEquivalence",
+        "local": "defaultEquivalence",
+        "qual": "C.defaultEquivalence"
     },
     {
         "full": "Data.Functor.Contravariant.getComparison",
@@ -78,43 +105,16 @@
         "qual": "C.getPredicate"
     },
     {
-        "full": "Data.Functor.Contravariant.$<",
-        "local": "$<",
-        "qual": "C.$<"
-    },
-    {
-        "full": "Data.Functor.Contravariant.>$",
-        "local": ">$",
-        "qual": "C.>$"
-    },
-    {
-        "full": "Data.Functor.Contravariant.>$$<",
-        "local": ">$$<",
-        "qual": "C.>$$<"
-    },
-    {
-        "full": "Data.Functor.Contravariant.>$<",
-        "local": ">$<",
-        "qual": "C.>$<"
-    },
-    {
-        "full": "Data.Functor.Contravariant.comparisonEquivalence",
-        "local": "comparisonEquivalence",
-        "qual": "C.comparisonEquivalence"
-    },
-    {
-        "full": "Data.Functor.Contravariant.defaultComparison",
-        "local": "defaultComparison",
-        "qual": "C.defaultComparison"
-    },
-    {
-        "full": "Data.Functor.Contravariant.defaultEquivalence",
-        "local": "defaultEquivalence",
-        "qual": "C.defaultEquivalence"
-    },
-    {
         "full": "Data.Functor.Contravariant.phantom",
         "local": "phantom",
         "qual": "C.phantom"
+    },
+    {
+        "full": "Medley.Wobble.wobble",
+        "local": "wobble"
+    },
+    {
+        "full": "Prelude.zip",
+        "local": "zip"
     }
 ]
