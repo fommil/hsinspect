@@ -55,11 +55,15 @@ write :: (MonadIO m, GHC.HasDynFlags m) => m ()
 write = do
   dflags <- GHC.getDynFlags
   args <- liftIO $ getArgs
+  ghcPath <- liftIO $ lookupEnv "PATH"
 
   -- downstream tools shouldn't use this plugin, or all hell will break loose
   let ghcFlags = unwords $ replace ["-fplugin", "GhcFlags.Plugin"] [] args
       paths = GHC.importPaths dflags
       writeGhcFlags path = writeDifferent (path <> "/.ghc.flags") ghcFlags
+      writeGhcPath path = case ghcPath of
+        Just p -> writeDifferent (path <> "/.ghc.path") p
+        Nothing -> pure ()
       enable = case GHC.hscTarget dflags of
         GHC.HscInterpreted -> False
         GHC.HscNothing -> False
@@ -67,6 +71,7 @@ write = do
 
   when enable $ liftIO $ do
     traverse_ writeGhcFlags paths
+    traverse_ writeGhcPath paths
 
 -- Only writes out the file when it will result in changes, and silently fails
 -- on exceptions because the plugin should never interrupt normal ghc work. The

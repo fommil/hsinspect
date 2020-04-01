@@ -9,7 +9,7 @@ maintainer:    Tseen She
 copyright:     2019 Tseen She
 tested-with:   GHC ^>=8.4.4 || ^>=8.6.5 || ^>=8.8.3
 category:      Building
-description:   Generate @.ghc.flags@ files during compilation
+description:   Generate @.ghc.flags@ and @.ghc.path@ files during compilation
 
 source-repository head
   type:     git

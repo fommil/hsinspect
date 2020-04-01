@@ -2,7 +2,8 @@
 .ghc.environment.*
 dist/
 dist-newstyle/
-.hsinspect.env
+
+.ghc.path
 
 # RTS
 *.eventlog
