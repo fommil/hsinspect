@@ -25,7 +25,6 @@ import FastString (unpackFS)
 import qualified GHC
 import GHC.PackageDb
 import qualified GHC.PackageDb as GHC
-import HscTypes (ModIface(..))
 import HsInspect.Json ()
 import HsInspect.Sexp
 import HsInspect.Util
@@ -81,7 +80,7 @@ getCompiledTargets :: GHC.GhcMonad m => FilePath -> m [GHC.Target]
 getCompiledTargets dir = do
   provided <- getTargetModules
   his <- liftIO $ walkSuffix ".hi" dir
-  modules <- catMaybes <$> traverse (flip withHi (pure . mi_module)) his
+  modules <- catMaybes <$> traverse (flip withHi (pure . GHC.mi_module)) his
   let toTarget m =
         if Set.member m provided
           then Just $ GHC.Target (GHC.TargetModule m) True Nothing
@@ -127,7 +126,7 @@ hiToSymbols
   -> FilePath
   -> m (Maybe (GHC.Module, [(Maybe GHC.Module, GHC.TcTyThing)]))
 hiToSymbols exposed hi = (join <$>) <$> withHi hi $ \iface -> do
-  let m = mi_module iface
+  let m = GHC.mi_module iface
   -- TODO we should include all modules from inplace packages, otherwise the
   -- user is unable to jump-to-definition within the same multi-package project.
   if not $ Set.member (GHC.moduleName m) exposed
@@ -140,7 +139,7 @@ hiToSymbols exposed hi = (join <$>) <$> withHi hi $ \iface -> do
             modl <- GHC.nameModule_maybe name
             if m == modl then Nothing else Just modl
           tcLookup' name = (reexport name,) <$> tcLookup name
-      things <- join <$> traverse thing (mi_exports iface)
+      things <- join <$> traverse thing (GHC.mi_exports iface)
       pure . Just $ (m, things)
 
 tyrender :: GHC.DynFlags -> UnitId -> Maybe GHC.Module -> GHC.TcTyThing -> Maybe Entry

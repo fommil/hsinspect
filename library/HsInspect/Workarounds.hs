@@ -16,7 +16,11 @@ import FastString
 import qualified GHC as GHC
 import HeaderInfo (getOptions)
 import HscTypes (Target(..), TargetId(..))
+#if MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
+import GHC.Hs.ImpExp (ImportDecl(..))
+#else
 import HsImpExp (ImportDecl(..))
+#endif
 import Lexer
 import Outputable (showPpr)
 import Parser (parseHeader)
