@@ -31,7 +31,7 @@ common deps
     , ghc-boot
     , time
 
-  ghc-options:      -Wall -Werror=missing-home-modules
+  ghc-options:      -Wall -Werror=missing-home-modules -Werror=orphans
   default-language: Haskell2010
 
   if flag(ghcflags)
