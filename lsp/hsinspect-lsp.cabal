@@ -25,29 +25,39 @@ flag ghcflags
 common deps
   build-depends:
     , aeson         ^>=1.4.6.0
-    , base          >=4.11     && <5
+    , base          >=4.11    && <5
     , bytestring
+    , cache         ^>=0.1.3.0
     , directory
     , extra         ^>=1.7.1
     , filepath
-    , haskell-lsp   ^>=0.20.0.1
+    , ghc
+    , ghc-paths
+    , hslogger
     , process
     , text
     , transformers
 
-  ghc-options:      -Wall -Werror=missing-home-modules
+  ghc-options:      -Wall -Werror=missing-home-modules -Werror=orphans
   default-language: Haskell2010
 
   if flag(ghcflags)
-    ghc-options:   -fplugin GhcFlags.Plugin
-    build-depends: ghcflags
+    ghc-options:        -fplugin GhcFlags.Plugin
+    build-depends:      ghcflags
+    build-tool-depends: hsinspect:hsinspect -any
 
 executable hsinspect-lsp
   import:         deps
   hs-source-dirs: exe
-  build-depends:  hsinspect
   main-is:        Main.hs
   ghc-options:    -rtsopts -threaded -with-rtsopts=-N8
+  build-depends:
+    , data-default
+    , haskell-lsp           ^>=0.22.0.0
+    , hsinspect-lsp
+    , mtl
+    , stm
+    , unordered-containers
 
 library
   import:          deps
@@ -57,6 +67,7 @@ library
   exposed-modules:
     HsInspect.LSP.Context
     HsInspect.LSP.HsInspect
+    HsInspect.LSP.Impl
     HsInspect.LSP.Util
 
 test-suite test

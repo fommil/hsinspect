@@ -12,7 +12,7 @@
 -- only ghcflags / hsinspect setup per project.
 module HsInspect.LSP.HsInspect where
 
-import Control.Monad.Trans.Class (lift)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except (ExceptT(..))
 import Data.Aeson
 import qualified Data.ByteString.Char8 as C
@@ -21,25 +21,25 @@ import Data.Text (Text)
 import GHC.Generics
 import HsInspect.LSP.Context
 import HsInspect.LSP.Util
-import System.Directory (setCurrentDirectory)
+import qualified System.Log.Logger as L
 
 data HsInspect m = HsInspect
   { imports :: Context -> FilePath -> m [Import]
   , index :: Context -> m [Package]
   }
 
-mkHsInspect :: HsInspect ZIO
+mkHsInspect :: HsInspect (ExceptT String IO)
 mkHsInspect = HsInspect {..}
   where
-    imports :: Context -> FilePath -> ZIO [Import]
+    imports :: Context -> FilePath -> ExceptT String IO [Import]
     imports ctx hs = call ctx ["imports", hs]
-    index :: Context -> ZIO [Package]
+    index :: Context -> ExceptT String IO [Package]
     index ctx = call ctx ["index"]
 
-    call :: FromJSON a => Context -> [String] -> ZIO a
-    call Context{hsinspect, package_dir, ghcflags} args = do
-      lift $ setCurrentDirectory package_dir
-      stdout <- shell hsinspect $ args <> ["--json", "--"] <> ghcflags
+    call :: FromJSON a => Context -> [String] -> ExceptT String IO a
+    call Context{hsinspect, package_dir, ghcflags, ghcpath} args = do
+      liftIO $ L.debugM "haskell-lsp" $ "hsinspect-lsp:cwd:" <> package_dir
+      stdout <- shell hsinspect (args <> ["--json", "--"] <> ghcflags) (Just package_dir) (Just ghcpath) [("GHC_ENVIRONMENT", "-")]
       ExceptT . pure . eitherDecodeStrict' $ C.pack stdout
 
 data Import = Import

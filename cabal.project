@@ -8,3 +8,6 @@ package hsinspect
 package medley
   flags: +ghcflags
   tests: True
+
+package hsinspect-lsp
+  flags: +ghcflags
