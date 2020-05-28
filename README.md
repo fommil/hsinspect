@@ -31,7 +31,7 @@ In [Lessons from 6 Software Rewrites](https://medium.com/@herbcaudill/lessons-fr
 
 HIE uses the [LSP](https://langserver.org/) so that there is (in theory, but rarely in practice) no additional work required to support a new text editor.
 
-However, LSP servers come with a large cost: they have a lifecycle that must be managed and the text editor needs to know how to communicate with the server. Persistent servers can become a problem in themselves as they can leak resources. The machinary required to support the LSP protocol and a monolithic featureset means that the compiletime is very long (which must be repeated per ghc version).
+However, LSP servers come with a large cost: they have a lifecycle that must be managed and the text editor needs to know how to communicate with the server. Persistent servers can become a problem in themselves as they can leak resources. The machinary required to support the LSP protocol and a monolithic featureset means that the compiletime is very long (which must be repeated per ghc version). That said, the `hsinspect-lsp` tool is provided to wrap `hsinspect` with an LSP so that it may be accessed from VSCode.
 
 `hsinspect` is a leightweight command line tool (and optional compiler plugin) that compiles very quickly and only requires access to the ghc flags used to compile the package. Each text editor must implement custom support but in reality this is not a lot of work because the featureset is small and focused. `hsinspect` does not provide end-user features such as "completion at point" but instead provides raw semantic information that allows the text editor to calculate an answer.
 

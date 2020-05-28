@@ -43,6 +43,9 @@ import TcRnMonad (initTcInteractive)
 import qualified TcRnTypes as GHC
 import qualified TyCon as GHC
 
+-- TODO export unexposed modules too, since they could be exposed by an export elsewhere
+--
+-- TODO modules that export other modules seem to be skipped, e.g. Language.Haskell.LSP.Types
 index :: GHC.GhcMonad m => m [PackageEntries]
 index = do
   dflags <- GHC.getSessionDynFlags
@@ -151,10 +154,10 @@ tyrender dflags unitid m' (GHC.AGlobal thing) =
    in case thing of
     (GHC.AnId var) -> Just $ IdEntry m
       (shw $ GHC.idName var)
-      (shw $ GHC.idType var) -- TODO fully qualify
+      (shw $ GHC.idType var)
     (GHC.AConLike (GHC.RealDataCon dc)) -> Just $ ConEntry m
       (shw $ GHC.getName dc)
-      (shw $ GHC.dataConUserType dc) -- TODO fully qualify
+      (shw $ GHC.dataConUserType dc)
     (GHC.AConLike (GHC.PatSynCon ps)) -> Just $ PatSynEntry m
       (shw $ GHC.getName ps)
       (showSDoc dflags $ GHC.pprPatSynType ps )
@@ -188,8 +191,6 @@ data PackageEntries = PackageEntries (Maybe SourcePackageId) Bool [ModuleEntries
 data Exported = Exported (Maybe SourcePackageId) GHC.ModuleName
   deriving (Eq, Ord)
 
--- TODO Exported should follow re-exports until they reach the original symbol.
--- Otherwise editors have to do this.
 mkExported :: GHC.DynFlags -> UnitId -> Module -> Exported
 mkExported dflags unitid m =
   let unitid' = moduleUnitId m
