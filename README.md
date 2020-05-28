@@ -2,7 +2,7 @@
 
 Inspect `.hs` files using the ghc api.
 
-The goal is to provide a very lightweight (zero dependency) command line interface over the [`ghc`](http://hackage.haskell.org/package/ghc) api for use by text editors such as [`haskell-tng`](https://gitlab.com/tseenshe/haskell-tng.el).
+Provides a very lightweight (zero dependency) command line interface over the [`ghc`](http://hackage.haskell.org/package/ghc) api for use by text editors.
 
 ## Features
 
@@ -19,21 +19,25 @@ If you wish to contribute, the best thing to do is to let me know about your cop
 
 To run the tests type `./tests.sh`
 
-## Why not HIE?
+## Why not Haskell Language Server?
 
 In [Lessons from 6 Software Rewrites](https://medium.com/@herbcaudill/lessons-from-6-software-rewrite-stories-635e4c8f7c22), the author concludes *avoid rewrites and make incremental improvements instead, unless you want to a) remove functionality or b) take a different approach*.
 
 ### Remove Functionality
 
-`hsinspect` has a very small scope, and offers only a fraction of the features of [HIE](https://github.com/haskell/haskell-ide-engine). Remove the features from HIE that are not required would be an epic challenge.
+`hsinspect` has a very small scope, and offers only a fraction of the features provided by the [Haskell Language Server](https://github.com/haskell/haskell-language-server).
+
+Whereas the Haskell Language Server aims to implement every aspect of the [LSP](https://langserver.org/), `hsinspect` asks "which features do we **need**?" and attempts to do this with minimal dependencies to ensure a fast installation.
 
 ### Different Approach
 
-HIE uses the [LSP](https://langserver.org/) so that there is (in theory, but rarely in practice) no additional work required to support a new text editor.
+Tools that deal with Haskell source code require access to the flags that are passed to the compiler, listing language extensions, dependencies, error levels, and preprocessor flags.
 
-However, LSP servers come with a large cost: they have a lifecycle that must be managed and the text editor needs to know how to communicate with the server. Persistent servers can become a problem in themselves as they can leak resources. The machinary required to support the LSP protocol and a monolithic featureset means that the compiletime is very long (which must be repeated per ghc version). That said, the `hsinspect-lsp` tool is provided to wrap `hsinspect` with an LSP so that it may be accessed from VSCode.
+`hsinspect` obtains the compiler flags via a compiler plugin (`ghcflags`) which dumps the exact flags that are used when compiling the project, at no cost to performance. Compare to [`hie-bios`](https://github.com/mpickering/hie-bios) which attempts to extract the compiler flags from the build tool. The tradeoff is: `hie-bios` is easy to install but is slow and not always correct, whereas `ghcflags` requires intrusive changes to the `.cabal` file and is 100% correct with no performance overhead.
 
-`hsinspect` is a leightweight command line tool (and optional compiler plugin) that compiles very quickly and only requires access to the ghc flags used to compile the package. Each text editor must implement custom support but in reality this is not a lot of work because the featureset is small and focused. `hsinspect` does not provide end-user features such as "completion at point" but instead provides raw semantic information that allows the text editor to calculate an answer.
+A direct CLI interface, e.g. [Emacs' `haskell-tng`](https://gitlab.com/tseenshe/haskell-tng.el), avoids many problems associated with language servers: scalability, bloat, memory leaks, lifecycle management, and networking issues. A direct interface means performance is exceptional, e.g. imported symbols can be stored in-memory in the text editor, avoiding network calls on every keystroke. It is also possible to write Haskell-specific features and caching strategies that go outside the realm of the LSP, e.g. [Emacs prefix arguments](https://www.gnu.org/software/emacs/manual/html_node/emacs/Arguments.html) can change the behaviour of the commands.
+
+That said, `hsinspect-lsp` is provided as a wrapper that implements a very small subset of the LSP, offering basic semantic features to a much wide range of text editors.
 
 ## Installation
 
