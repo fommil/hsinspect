@@ -23,24 +23,17 @@ import HsInspect.LSP.Context
 import HsInspect.LSP.Util
 import qualified System.Log.Logger as L
 
-data HsInspect m = HsInspect
-  { imports :: Context -> FilePath -> m [Import]
-  , index :: Context -> m [Package]
-  }
+hsinspect_imports :: Context -> FilePath -> ExceptT String IO [Import]
+hsinspect_imports ctx hs = hsinspect_raw ctx ["imports", hs]
 
-mkHsInspect :: HsInspect (ExceptT String IO)
-mkHsInspect = HsInspect {..}
-  where
-    imports :: Context -> FilePath -> ExceptT String IO [Import]
-    imports ctx hs = call ctx ["imports", hs]
-    index :: Context -> ExceptT String IO [Package]
-    index ctx = call ctx ["index"]
+hsinspect_index :: Context -> ExceptT String IO [Package]
+hsinspect_index ctx = hsinspect_raw ctx ["index"]
 
-    call :: FromJSON a => Context -> [String] -> ExceptT String IO a
-    call Context{hsinspect, package_dir, ghcflags, ghcpath} args = do
-      liftIO $ L.debugM "haskell-lsp" $ "hsinspect-lsp:cwd:" <> package_dir
-      stdout <- shell hsinspect (args <> ["--json", "--"] <> ghcflags) (Just package_dir) (Just ghcpath) [("GHC_ENVIRONMENT", "-")]
-      ExceptT . pure . eitherDecodeStrict' $ C.pack stdout
+hsinspect_raw :: FromJSON a => Context -> [String] -> ExceptT String IO a
+hsinspect_raw Context{hsinspect, package_dir, ghcflags, ghcpath} args = do
+  liftIO $ L.debugM "haskell-lsp" $ "hsinspect-lsp:cwd:" <> package_dir
+  stdout <- shell hsinspect (args <> ["--json", "--"] <> ghcflags) (Just package_dir) (Just ghcpath) [("GHC_ENVIRONMENT", "-")]
+  ExceptT . pure . eitherDecodeStrict' $ C.pack stdout
 
 data Import = Import
   { _local :: Maybe Text

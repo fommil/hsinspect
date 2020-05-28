@@ -14,6 +14,7 @@ import Control.Monad.IO.Class
 import Control.Monad.STM
 import qualified Data.Cache as C
 import Data.Default
+import qualified Data.Text as T
 import Data.Typeable (typeOf)
 import HsInspect.LSP.Context (BuildTool(..))
 import HsInspect.LSP.Impl
@@ -78,34 +79,65 @@ run tool = flip E.catches [E.Handler ioExcept, E.Handler someExcept] $ do
     ioExcept   (e :: E.IOException) = print e >> return 1
     someExcept (e :: E.SomeException) = print e >> return 1
 
+-- supported requests are duplicated here, in the reactor, and lspHandlers
+supported :: [J.ClientMethod]
+supported = [J.TextDocumentHover]
+
 reactor :: BuildTool -> Core.LspFuncs () -> TChan FromClientMessage -> IO ()
 reactor tool lf inp = do
   U.logs "reactor:entered"
-  caches <- Caches <$> C.newCache Nothing <*> C.newCache Nothing
+  caches <- Caches <$> C.newCache Nothing <*> C.newCache Nothing <*> C.newCache Nothing
   forever $ do
     inval <- atomically $ readTChan inp
     case inval of
 
-      (ReqSignatureHelp req@(J.RequestMessage _ _ _ params)) -> do
-        U.logs $ "reactor:SignatureHelp:" ++ show params
+      NotInitialized _notification -> do
+        U.logs "reactor:init"
+        let reg cmd = J.Registration "hsinspect-lsp" cmd Nothing
+            regs = J.RegistrationParams (J.List $ reg <$> supported)
+
+        rid <- Core.getNextReqId lf
+        Core.sendFunc lf . ReqRegisterCapability $ fmServerRegisterCapabilityRequest rid regs
+
+      (ReqHover req@(J.RequestMessage _ _ _ params)) -> do
+        U.logs $ "reactor:hover:" ++ show params
         let J.TextDocumentPositionParams (J.TextDocumentIdentifier doc) (J.Position line col) _ = params
             Just file = J.uriToFilePath doc
-        res <- runExceptT $ signatureHelpProvider caches tool file (line + 1, col + 1)
+        res <- runExceptT $ hoverProvider caches tool file (line + 1, col + 1)
         case res of
           Left err -> do
-            U.logs $ "reactor:signatureHelpProvider:err:" ++ err
-            -- FIXME how to send an error to the client?
-          Right sigs -> do
-            let render s = J.SignatureInformation s Nothing Nothing
-                halp = J.SignatureHelp (J.List $ render <$> sigs) Nothing Nothing
-            Core.sendFunc lf . RspSignatureHelp $ Core.makeResponseMessage req halp
+            U.logs $ "reactor:hover:err:" ++ err
+            -- the only way to get a popup on the user's screen is to use a show
+            -- notification, the ErrorReq ends up being rendered exactly the
+            -- same as a success, so useless.
+            Core.sendFunc lf . RspHover $ Core.makeResponseMessage req Nothing
+            Core.sendFunc lf . NotShowMessage $
+              J.NotificationMessage "2.0" J.WindowShowMessage (J.ShowMessageParams J.MtWarning $ T.pack err)
+
+          Right Nothing -> do
+            Core.sendFunc lf . RspHover $ Core.makeResponseMessage req Nothing
+
+          Right (Just (Span line' col' line'' col'', txt)) -> do
+            let halp = J.Hover
+                         (J.HoverContents . J.unmarkedUpContent $ txt)
+                         (Just $ J.Range (J.Position line' col') (J.Position line'' col''))
+            Core.sendFunc lf . RspHover $ Core.makeResponseMessage req (Just halp)
+
+      -- preemptively populate caches
+      NotDidOpenTextDocument (J.NotificationMessage _ _ params) -> do
+        U.logs "reactor:open"
+        let (J.DidOpenTextDocumentParams (J.TextDocumentItem uri _ _ _)) = params
+            Just file = J.uriToFilePath uri
+        -- TODO forkIO
+        void . runExceptT $ do
+          ctx <- cachedContext caches tool file
+          void $ cachedImports caches ctx file
+          void $ cachedIndex caches ctx
 
       -- TODO completionProvider
       -- TODO definitionProvider
-
-      -- TODO DidOpenTextDocument is a good opportunity to preemptively populate caches
-
-      -- TODO hygienic registration of supported commands
+      -- TODO signatureHelpProvider
+      -- TODO import symbol at point (CodeActionQuickFix?)
 
       om -> do
         U.logs $ "reactor:HandlerRequest:" ++ (show $ typeOf om)
@@ -114,10 +146,12 @@ lspHandlers :: TChan FromClientMessage -> Core.Handlers
 lspHandlers rin =
   let passHandler :: (a -> FromClientMessage) -> Core.Handler a
       passHandler c notification = atomically $ writeTChan rin (c notification)
-  in def { Core.signatureHelpHandler = Just $ passHandler ReqSignatureHelp
+  in def { Core.hoverHandler = Just $ passHandler ReqHover
          , Core.completionHandler = Just $ passHandler ReqCompletion
          , Core.definitionHandler = Just $ passHandler ReqDefinition
          , Core.initializedHandler = Just $ passHandler NotInitialized
-         , Core.cancelNotificationHandler = Just $ passHandler NotCancelRequestFromClient
          , Core.didOpenTextDocumentNotificationHandler = Just $ passHandler NotDidOpenTextDocument
+         -- Emacs lsp-mode sends these, even though we don't ask for them...
+         , Core.cancelNotificationHandler = Just $ passHandler NotCancelRequestFromClient
+         , Core.responseHandler = Just $ \_ -> pure ()
          }

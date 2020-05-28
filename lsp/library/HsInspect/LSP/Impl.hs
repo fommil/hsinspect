@@ -1,3 +1,6 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- Features of https://microsoft.github.io/language-server-protocol/specification.html
 module HsInspect.LSP.Impl where
@@ -8,10 +11,12 @@ import Control.Monad.Trans.Except (ExceptT(..))
 import Control.Monad.Trans.Except (throwE)
 import Data.Cache (Cache)
 import qualified Data.Cache as C
-import qualified Data.List as L
-import Data.Maybe (mapMaybe)
+import Data.List.Extra (firstJust)
+import Data.Maybe (listToMaybe)
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
+import Debug.Trace (traceShowId)
 import qualified FastString as GHC
 import qualified GHC as GHC
 import GHC.Paths (libdir)
@@ -20,50 +25,84 @@ import HsInspect.LSP.HsInspect
 import qualified Lexer as GHC
 import qualified SrcLoc as GHC
 import qualified StringBuffer as GHC
+import System.FilePath (takeDirectory)
 
--- TODO consider more advanced cache keys, e.g. Import could be cached on a
---      checksum of the file's header plus a checksum of the .ghc.* files.
+-- TODO consider invalidation strategies, e.g. Import could use the file's
+--      header, and the Context use the .ghc.* files. The index might also want
+--      to hash the .ghc.flags contents plus any changes to exported symbols in
+--      the current package. But beware that often it is better to have a stale
+--      cache and respond with *something* than to be slow and redo the work.
 data Caches = Caches
-  (Cache FilePath Context) -- ^ by the package_dir
+  (Cache FilePath Context) -- ^ by source root
   (Cache FilePath [Import]) -- ^ by source filename
+  (Cache FilePath [Package]) -- ^ by source root
+
+-- TODO the index could use a data structure that is faster to search
 
 cachedContext :: Caches -> BuildTool -> FilePath -> ExceptT String IO Context
-cachedContext (Caches cache _) tool file = do
-  let discover = mkDiscoverContext tool
-  key <- discoverPackageDir discover file
+cachedContext (Caches cache _ _) tool file = do
+  key <- takeDirectory <$> discoverGhcflags file
   let work = do
-        ctx <- findContext discover file
+        ctx <- findContext file tool
         liftIO $ C.insert cache key ctx
         pure ctx
   fromMaybeM work . liftIO $ C.lookup cache key
 
 cachedImports :: Caches -> Context -> FilePath -> ExceptT String IO [Import]
-cachedImports (Caches _ cache) ctx file =
-  C.fetchWithCache cache file $ imports mkHsInspect ctx
+cachedImports (Caches _ cache _) ctx file =
+  C.fetchWithCache cache file $ hsinspect_imports ctx
 
--- FIXME return all hits, not just the first one
--- TODO docs / parameter info
-signatureHelpProvider :: Caches -> BuildTool -> FilePath -> (Int, Int) -> ExceptT String IO [Text]
-signatureHelpProvider caches tool file position = do
+cachedIndex :: Caches -> Context -> ExceptT String IO [Package]
+cachedIndex (Caches _ _ cache) ctx =
+  C.fetchWithCache cache (srcdir ctx) $ \_ -> hsinspect_index ctx
+
+-- only lookup the index, don't try to populate it
+cachedIndex' :: Caches -> Context -> ExceptT String IO [Package]
+cachedIndex' (Caches _ _ cache) ctx = liftIO $
+  fromMaybe [] <$> C.lookup cache (srcdir ctx)
+
+-- zero indexed
+data Span = Span Int Int Int Int -- line, col, line, col
+
+findType :: Text -> [Package] -> Maybe Text
+findType qual pkgs = listToMaybe $ do
+  let (T.init -> module', sym) = T.breakOnEnd "." qual
+  let flatten Nothing = []
+      flatten (Just as) = as
+  pkg <- pkgs
+  Module module'' entries <- flatten . _modules $ pkg
+  if module'' /= module'
+  then []
+  else do
+    e <- traceShowId $ flatten entries
+    let matcher name typ = if name == sym && name /= typ then [typ] else []
+    case e of
+      Id _ name typ -> matcher name typ
+      Con _ name typ -> matcher name typ
+      Pat _ name typ -> matcher name typ
+      TyCon _ _ _ -> []
+
+hoverProvider :: Caches -> BuildTool -> FilePath -> (Int, Int) -> ExceptT String IO (Maybe (Span, Text))
+hoverProvider caches tool file position = do
   ctx <- cachedContext caches tool file
   symbols <- cachedImports caches ctx file
-  sym <- symbolAtPoint file position
-
-  -- TODO include type information by consulting the index
-
-  let
-    matcher imp =
-      if _local imp == Just sym || _qual imp == Just sym || _full imp == sym
-      then Just $ _full imp
-      else Nothing
-
-  pure $ mapMaybe matcher symbols
+  index <- cachedIndex' caches ctx
+  found <- symbolAtPoint file position
+  pure $ case found of
+    Nothing -> Nothing
+    Just (range, sym) ->
+      let matcher imp = if _local imp == Just sym || _qual imp == Just sym || _full imp == sym
+                        then Just $ case findType (_full imp) index of
+                          Just typ -> _full imp <> " :: " <> typ
+                          Nothing -> _full imp
+                        else Nothing
+       in (range,) <$> firstJust matcher symbols
 
 -- c.f. haskell-tng--hsinspect-symbol-at-point
 --
 -- TODO consider replacing this (inefficient) ghc api usage with a regexp or
 -- calling the specific lexer functions directly for the symbols we support.
-symbolAtPoint :: FilePath -> (Int, Int) -> ExceptT String IO Text
+symbolAtPoint :: FilePath -> (Int, Int) -> ExceptT String IO (Maybe (Span, Text))
 symbolAtPoint file (line, col) = do
   buf' <- liftIO $ GHC.hGetStringBuffer file
   -- TODO for performance, and language extension reliability, find out how to
@@ -81,11 +120,16 @@ symbolAtPoint file (line, col) = do
   -- lexTokenStream :: StringBuffer -> RealSrcLoc -> DynFlags -> ParseResult [Located Token]
   case GHC.lexTokenStream buf startLoc dflags of
     GHC.POk _ ts  ->
-      let containsPoint :: GHC.SrcSpan -> Bool
-          containsPoint (GHC.UnhelpfulSpan _) = False
-          containsPoint (GHC.RealSrcSpan s) = GHC.containsSpan s point
-       in maybe (throwE "could not find a token") (pure . T.pack . snd) .
-            L.find (containsPoint . GHC.getLoc . fst) $
-            GHC.addSourceToTokens startLoc buf ts
+      let containsPoint :: (GHC.Located GHC.Token, String) -> Maybe (Span, Text)
+          containsPoint ((GHC.L (GHC.UnhelpfulSpan _) _), _) = Nothing
+          containsPoint ((GHC.L (GHC.RealSrcSpan s) _), txt) =
+            if GHC.containsSpan s point then Just (toSpan s, T.pack txt) else Nothing
+          toSpan src = Span
+            (GHC.srcSpanStartLine src - 1)
+            (GHC.srcSpanStartCol src - 1)
+            (GHC.srcSpanEndLine src - 1)
+            (GHC.srcSpanEndCol src - 1)
+
+       in pure . firstJust containsPoint $ GHC.addSourceToTokens startLoc buf ts
 
     _ -> throwE "lexer error" -- TODO getErrorMessages
