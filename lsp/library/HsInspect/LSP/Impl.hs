@@ -16,7 +16,6 @@ import Data.Maybe (listToMaybe)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
-import Debug.Trace (traceShowId)
 import qualified FastString as GHC
 import qualified GHC as GHC
 import GHC.Paths (libdir)
@@ -74,7 +73,7 @@ findType qual pkgs = listToMaybe $ do
   if module'' /= module'
   then []
   else do
-    e <- traceShowId $ flatten entries
+    e <- flatten entries
     let matcher name typ = if name == sym && name /= typ then [typ] else []
     case e of
       Id _ name typ -> matcher name typ
