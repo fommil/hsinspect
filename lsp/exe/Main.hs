@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- based on the haskell-lsp example by Alan Zimmerman
 module Main (main) where
@@ -14,6 +15,7 @@ import Control.Monad.IO.Class
 import Control.Monad.STM
 import qualified Data.Cache as C
 import Data.Default
+import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import Data.Typeable (typeOf)
 import HsInspect.LSP.Context (BuildTool(..))
@@ -81,17 +83,19 @@ run tool = flip E.catches [E.Handler ioExcept, E.Handler someExcept] $ do
 
 -- supported requests are duplicated here, in the reactor, and lspHandlers
 supported :: [J.ClientMethod]
-supported = [J.TextDocumentHover]
+supported = [J.TextDocumentHover, J.TextDocumentCompletion]
 
 reactor :: BuildTool -> Core.LspFuncs () -> TChan FromClientMessage -> IO ()
 reactor tool lf inp = do
   U.logs "reactor:entered"
   caches <- Caches <$> C.newCache Nothing <*> C.newCache Nothing <*> C.newCache Nothing
+  let toPos (J.Position line col) = (line + 1, col + 1) -- LSP is zero indexed, ghc is one indexed
+      toFile (J.TextDocumentIdentifier doc) = fromJust $ J.uriToFilePath doc
   forever $ do
     inval <- atomically $ readTChan inp
     case inval of
 
-      NotInitialized _notification -> do
+      NotInitialized _ -> do
         U.logs "reactor:init"
         let reg cmd = J.Registration "hsinspect-lsp" cmd Nothing
             regs = J.RegistrationParams (J.List $ reg <$> supported)
@@ -99,11 +103,9 @@ reactor tool lf inp = do
         rid <- Core.getNextReqId lf
         Core.sendFunc lf . ReqRegisterCapability $ fmServerRegisterCapabilityRequest rid regs
 
-      (ReqHover req@(J.RequestMessage _ _ _ params)) -> do
-        U.logs $ "reactor:hover:" ++ show params
-        let J.TextDocumentPositionParams (J.TextDocumentIdentifier doc) (J.Position line col) _ = params
-            Just file = J.uriToFilePath doc
-        res <- runExceptT $ hoverProvider caches tool file (line + 1, col + 1)
+      ReqHover req@(J.RequestMessage _ _ _ (J.TextDocumentPositionParams (toFile -> file) (toPos -> pos) _)) -> do
+        U.logs $ "reactor:hover:" ++ show (file, pos)
+        res <- runExceptT $ hoverProvider caches tool file pos
         case res of
           Left err -> do
             U.logs $ "reactor:hover:err:" ++ err
@@ -123,6 +125,19 @@ reactor tool lf inp = do
                          (Just $ J.Range (J.Position line' col') (J.Position line'' col''))
             Core.sendFunc lf . RspHover $ Core.makeResponseMessage req (Just halp)
 
+      ReqCompletion req@(J.RequestMessage _ _ _ (J.CompletionParams (toFile -> file) (toPos -> pos) _ _)) -> do
+        U.logs $ "reactor:complete:" ++ show (file, pos)
+        res <- runExceptT $ completionProvider caches tool file pos
+        let none = J.Completions $ J.List []
+        case res of
+          Left err -> do
+            U.logs $ "reactor:complete:err:" ++ err
+            Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req none
+
+          Right symbols -> do
+            let render txt = J.CompletionItem txt Nothing (J.List []) Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+            Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req (J.Completions . J.List $ render <$> symbols)
+
       -- preemptively populate caches
       NotDidOpenTextDocument (J.NotificationMessage _ _ params) -> do
         U.logs "reactor:open"
@@ -134,7 +149,6 @@ reactor tool lf inp = do
           void $ cachedImports caches ctx file
           void $ cachedIndex caches ctx
 
-      -- TODO completionProvider
       -- TODO definitionProvider
       -- TODO signatureHelpProvider
       -- TODO import symbol at point (CodeActionQuickFix?)

@@ -97,6 +97,11 @@ hoverProvider caches tool file position = do
                         else Nothing
        in (range,) <$> firstJust matcher symbols
 
+-- FIXME implement
+-- TODO use the index to add optional type information
+completionProvider :: Caches -> BuildTool -> FilePath -> (Int, Int) -> ExceptT String IO [Text]
+completionProvider _ _ _ _ = pure []
+
 -- c.f. haskell-tng--hsinspect-symbol-at-point
 --
 -- TODO consider replacing this (inefficient) ghc api usage with a regexp or
