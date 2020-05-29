@@ -35,9 +35,24 @@ Tools that deal with Haskell source code require access to the flags that are pa
 
 `hsinspect` obtains the compiler flags via a compiler plugin (`ghcflags`) which dumps the exact flags that are used when compiling the project, at no cost to performance. Compare to [`hie-bios`](https://github.com/mpickering/hie-bios) which attempts to extract the compiler flags from the build tool. The tradeoff is: `hie-bios` is easy to install but is slow and not always correct, whereas `ghcflags` requires intrusive changes to the `.cabal` file and is 100% correct with no performance overhead.
 
-A direct CLI interface, e.g. [Emacs' `haskell-tng`](https://gitlab.com/tseenshe/haskell-tng.el), avoids many problems associated with language servers: scalability, bloat, memory leaks, lifecycle management, and networking issues. A direct interface means performance is exceptional, e.g. imported symbols can be stored in-memory in the text editor, avoiding network calls on every keystroke. It is also possible to write Haskell-specific features and caching strategies that go outside the realm of the LSP, e.g. [Emacs prefix arguments](https://www.gnu.org/software/emacs/manual/html_node/emacs/Arguments.html) can change the behaviour of the commands.
+A single LSP server binary, shared by all projects, locks the user in to one version of `ghc`. However, `hsinspect` is compiled per-package uses the exact same version of `ghc` for maximum compatibility.
 
-That said, `hsinspect-lsp` is provided as a wrapper that implements a very small subset of the LSP, offering basic semantic features to a much wide range of text editors.
+A direct CLI interface avoids many problems associated with language servers: scalability, bloat, memory leaks, lifecycle management, and networking issues. A direct interface means performance is exceptional, e.g. imported symbols can be stored in-memory in the text editor, avoiding network calls on every keystroke. It is also possible to write Haskell-specific features and caching strategies that go outside the realm of the LSP, e.g. [Emacs prefix arguments](https://www.gnu.org/software/emacs/manual/html_node/emacs/Arguments.html) can change the behaviour of the commands.
+
+That said, `hsinspect-lsp` is provided as a wrapper that implements a very small subset of the LSP, offering basic semantic features to a much wide range of text editors. The `hsinspect-lsp` executable does not need to be recompiled for each version of `ghc` and can be installed system-wide.
+
+## Editor Support
+
+- Emacs [`haskell-tng`](https://gitlab.com/tseenshe/haskell-tng.el) (provides both direct and LSP implementations)
+- VSCode [HsInspect Language Server](https://marketplace.visualstudio.com/items?itemName=rahulmutt.hsinspect) (LSP only)
+
+LSP users should install the `hsinspect-lsp` command line tool
+
+```
+cd ~ && cabal update && cabal install hsinspect-lsp -w ghc-8.8.3 --overwrite-policy=always
+```
+
+(this command will also upgrade the LSP server)
 
 ## Installation
 
