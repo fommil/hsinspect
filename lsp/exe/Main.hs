@@ -15,7 +15,6 @@ import Control.Monad.IO.Class
 import Control.Monad.STM
 import qualified Data.Cache as C
 import Data.Default
-import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import Data.Typeable (typeOf)
 import HsInspect.LSP.Context (BuildTool(..))
@@ -90,7 +89,7 @@ reactor tool lf inp = do
   U.logs "reactor:entered"
   caches <- Caches <$> C.newCache Nothing <*> C.newCache Nothing <*> C.newCache Nothing
   let toPos (J.Position line col) = (line + 1, col + 1) -- LSP is zero indexed, ghc is one indexed
-      toFile (J.TextDocumentIdentifier doc) = fromJust $ J.uriToFilePath doc
+      toFile (J.TextDocumentIdentifier doc) = J.uriToFilePath doc
   forever $ do
     inval <- atomically $ readTChan inp
     case inval of
@@ -103,7 +102,7 @@ reactor tool lf inp = do
         rid <- Core.getNextReqId lf
         Core.sendFunc lf . ReqRegisterCapability $ fmServerRegisterCapabilityRequest rid regs
 
-      ReqHover req@(J.RequestMessage _ _ _ (J.TextDocumentPositionParams (toFile -> file) (toPos -> pos) _)) -> do
+      ReqHover req@(J.RequestMessage _ _ _ (J.TextDocumentPositionParams (toFile -> Just file) (toPos -> pos) _)) -> do
         U.logs $ "reactor:hover:" ++ show (file, pos)
         res <- runExceptT $ hoverProvider caches tool file pos
         case res of
@@ -125,7 +124,7 @@ reactor tool lf inp = do
                          (Just $ J.Range (J.Position line' col') (J.Position line'' col''))
             Core.sendFunc lf . RspHover $ Core.makeResponseMessage req (Just halp)
 
-      ReqCompletion req@(J.RequestMessage _ _ _ (J.CompletionParams (toFile -> file) (toPos -> pos) _ _)) -> do
+      ReqCompletion req@(J.RequestMessage _ _ _ (J.CompletionParams (toFile -> Just file) (toPos -> pos) _ _)) -> do
         U.logs $ "reactor:complete:" ++ show (file, pos)
         res <- runExceptT $ completionProvider caches tool file pos
         let none = J.Completions $ J.List []
