@@ -38,11 +38,11 @@ data Caches = Caches
 
 -- TODO the index could use a data structure that is faster to search
 
-cachedContext :: Caches -> BuildTool -> FilePath -> ExceptT String IO Context
-cachedContext (Caches cache _ _) tool file = do
+cachedContext :: Caches -> FilePath -> ExceptT String IO Context
+cachedContext (Caches cache _ _) file = do
   key <- takeDirectory <$> discoverGhcflags file
   let work = do
-        ctx <- findContext file tool
+        ctx <- findContext file
         liftIO $ C.insert cache key ctx
         pure ctx
   fromMaybeM work . liftIO $ C.lookup cache key
@@ -81,9 +81,9 @@ findType qual pkgs = listToMaybe $ do
       Pat _ name typ -> matcher name typ
       TyCon _ _ _ -> []
 
-hoverProvider :: Caches -> BuildTool -> FilePath -> (Int, Int) -> ExceptT String IO (Maybe (Span, Text))
-hoverProvider caches tool file position = do
-  ctx <- cachedContext caches tool file
+hoverProvider :: Caches -> FilePath -> (Int, Int) -> ExceptT String IO (Maybe (Span, Text))
+hoverProvider caches file position = do
+  ctx <- cachedContext caches file
   symbols <- cachedImports caches ctx file
   index <- cachedIndex' caches ctx
   found <- symbolAtPoint file position
@@ -99,8 +99,8 @@ hoverProvider caches tool file position = do
 
 -- FIXME implement
 -- TODO use the index to add optional type information
-completionProvider :: Caches -> BuildTool -> FilePath -> (Int, Int) -> ExceptT String IO [Text]
-completionProvider _ _ _ _ = pure []
+completionProvider :: Caches -> FilePath -> (Int, Int) -> ExceptT String IO [Text]
+completionProvider _ _ _ = pure []
 
 -- c.f. haskell-tng--hsinspect-symbol-at-point
 --

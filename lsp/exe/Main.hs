@@ -17,7 +17,6 @@ import qualified Data.Cache as C
 import Data.Default
 import qualified Data.Text as T
 import Data.Typeable (typeOf)
-import HsInspect.LSP.Context (BuildTool(..))
 import HsInspect.LSP.Impl
 import qualified Language.Haskell.LSP.Control as CTRL
 import qualified Language.Haskell.LSP.Core as Core
@@ -46,8 +45,7 @@ main = do
     (putStrLn help) >> exitSuccess
   when (elem "--version" args) $
     (putStrLn version) >> exitSuccess
-  let tool = if (elem "--stack" args) then Stack else Cabal
-  res <- run tool
+  res <- run
   case res of
     0 -> exitSuccess
     c -> exitWith . ExitFailure $ c
@@ -55,13 +53,13 @@ main = do
 -- TODO replace haskell-lsp (which is huge!) with a minimal jsonrpc
 --      implementation that covers only the things we actually support. The
 --      advantage would be to speedup installation for the user.
-run :: BuildTool -> IO Int
-run tool = flip E.catches [E.Handler ioExcept, E.Handler someExcept] $ do
+run :: IO Int
+run = flip E.catches [E.Handler ioExcept, E.Handler someExcept] $ do
   rin <- atomically newTChan
   let
     dp lf = do
       liftIO $ U.logs "main.run:dp entered"
-      _rpid <- forkIO $ reactor tool lf rin
+      _rpid <- forkIO $ reactor lf rin
       liftIO $ U.logs "main.run:dp tchan"
       return Nothing
 
@@ -84,8 +82,8 @@ run tool = flip E.catches [E.Handler ioExcept, E.Handler someExcept] $ do
 supported :: [J.ClientMethod]
 supported = [J.TextDocumentHover, J.TextDocumentCompletion]
 
-reactor :: BuildTool -> Core.LspFuncs () -> TChan FromClientMessage -> IO ()
-reactor tool lf inp = do
+reactor :: Core.LspFuncs () -> TChan FromClientMessage -> IO ()
+reactor lf inp = do
   U.logs "reactor:entered"
   caches <- Caches <$> C.newCache Nothing <*> C.newCache Nothing <*> C.newCache Nothing
   let toPos (J.Position line col) = (line + 1, col + 1) -- LSP is zero indexed, ghc is one indexed
@@ -104,7 +102,7 @@ reactor tool lf inp = do
 
       ReqHover req@(J.RequestMessage _ _ _ (J.TextDocumentPositionParams (toFile -> Just file) (toPos -> pos) _)) -> do
         U.logs $ "reactor:hover:" ++ show (file, pos)
-        res <- runExceptT $ hoverProvider caches tool file pos
+        res <- runExceptT $ hoverProvider caches file pos
         case res of
           Left err -> do
             U.logs $ "reactor:hover:err:" ++ err
@@ -126,7 +124,7 @@ reactor tool lf inp = do
 
       ReqCompletion req@(J.RequestMessage _ _ _ (J.CompletionParams (toFile -> Just file) (toPos -> pos) _ _)) -> do
         U.logs $ "reactor:complete:" ++ show (file, pos)
-        res <- runExceptT $ completionProvider caches tool file pos
+        res <- runExceptT $ completionProvider caches file pos
         let none = J.Completions $ J.List []
         case res of
           Left err -> do
@@ -144,7 +142,7 @@ reactor tool lf inp = do
             Just file = J.uriToFilePath uri
         -- TODO forkIO
         void . runExceptT $ do
-          ctx <- cachedContext caches tool file
+          ctx <- cachedContext caches file
           void $ cachedImports caches ctx file
           void $ cachedIndex caches ctx
 

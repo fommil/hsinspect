@@ -9,13 +9,13 @@
 module HsInspect.LSP.Context where
 
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Trans.Except (withExceptT)
-import Control.Monad.Trans.Except (ExceptT(..))
+import Control.Monad.Trans.Except (ExceptT(..), throwE)
 import Data.List (isSuffixOf)
-import Data.List.Extra (trim)
 import HsInspect.LSP.Util
+import System.Directory (findExecutablesInDirectories)
 import System.FilePath
 
+-- TODO replace String with Text
 data Context = Context
   { hsinspect :: FilePath
   , package_dir :: FilePath
@@ -24,27 +24,22 @@ data Context = Context
   , srcdir :: FilePath
   }
 
-data BuildTool = Cabal | Stack
-
-findContext :: FilePath -> BuildTool -> ExceptT String IO Context
-findContext src tool = do
+findContext :: FilePath -> ExceptT String IO Context
+findContext src = do
   ghcflags' <- discoverGhcflags src
   ghcpath' <- discoverGhcpath src
   let readWords file = words <$> readFile' file
       readFile' = liftIO . readFile
-  Context <$> discoverHsInspect src tool <*> discoverPackageDir src <*> readWords ghcflags' <*> readFile' ghcpath' <*> pure (takeDirectory ghcflags')
+  ghcpath <- readFile' ghcpath'
+  Context <$> discoverHsInspect ghcpath <*> discoverPackageDir src <*> readWords ghcflags' <*> pure ghcpath <*> pure (takeDirectory ghcflags')
 
-discoverHsInspect :: FilePath -> BuildTool -> ExceptT String IO FilePath
-discoverHsInspect file tool = do
-  let dir = takeDirectory file
-  dir' <- discoverPackageDir dir
-  withExceptT (\err -> help_hsinspect ++ "\n\n" ++ err) $ case tool of
-    Cabal -> do
-      _ <- shell "cabal" ["build", "-v0", ":pkg:hsinspect:exe:hsinspect"] (Just dir') Nothing []
-      trim <$> shell "cabal" ["exec", "-v0", "which", "--", "hsinspect"] (Just dir') Nothing []
-    Stack -> do
-      _ <- shell "stack" ["build", "--silent", "hsinspect"] (Just dir') Nothing []
-      trim <$> shell "stack" ["exec", "--silent", "which", "--", "hsinspect"] (Just dir') Nothing []
+discoverHsInspect :: String -> ExceptT String IO FilePath
+discoverHsInspect path = do
+  let dirs = splitSearchPath path
+  found <- liftIO $ findExecutablesInDirectories dirs "hsinspect"
+  case found of
+    [] -> throwE help_hsinspect
+    exe : _ -> pure exe
 
 -- c.f. haskell-tng--compile-dominating-package
 discoverPackageDir :: FilePath -> ExceptT String IO FilePath
