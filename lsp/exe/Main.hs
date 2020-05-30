@@ -106,12 +106,7 @@ reactor lf inp = do
         case res of
           Left err -> do
             U.logs $ "reactor:hover:err:" ++ err
-            -- the only way to get a popup on the user's screen is to use a show
-            -- notification, the ErrorReq ends up being rendered exactly the
-            -- same as a success, so useless.
             Core.sendFunc lf . RspHover $ Core.makeResponseMessage req Nothing
-            Core.sendFunc lf . NotShowMessage $
-              J.NotificationMessage "2.0" J.WindowShowMessage (J.ShowMessageParams J.MtWarning $ T.pack err)
 
           Right Nothing -> do
             Core.sendFunc lf . RspHover $ Core.makeResponseMessage req Nothing
@@ -140,11 +135,16 @@ reactor lf inp = do
         U.logs "reactor:open"
         let (J.DidOpenTextDocumentParams (J.TextDocumentItem uri _ _ _)) = params
             Just file = J.uriToFilePath uri
-        -- TODO forkIO
-        void . runExceptT $ do
+        populated <- runExceptT $ do
           ctx <- cachedContext caches file
           void $ cachedImports caches ctx file
           void $ cachedIndex caches ctx
+        case populated of
+          Right _ -> pure ()
+          Left err ->
+            Core.sendFunc lf . NotShowMessage .
+              J.NotificationMessage "2.0" J.WindowShowMessage .
+                J.ShowMessageParams J.MtWarning $ T.pack err
 
       -- TODO definitionProvider
       -- TODO signatureHelpProvider
