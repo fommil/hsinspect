@@ -52,6 +52,9 @@ parseHeader' file = do
     liftIO . removeFile $ tmp
   let pragmas = getOptions dflags full file
       loc  = mkRealSrcLoc (mkFastString file) 1 1
+  -- FIXME strip out any GHC_OPTIONS that use -pgmF so we don't call external
+  --       tools. This also means we can lose the .ghc.path feature from the
+  --       plugin.
   (dflags', _, _) <- parseDynamicFilePragma dflags pragmas
   case unP parseHeader (mkPState dflags' full loc) of
     POk _ (L _ hsmod) -> pure (unLoc <$> pragmas, hsmod)
