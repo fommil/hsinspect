@@ -35,7 +35,7 @@ version = "unknown"
 #endif
 
 help :: String
-help = "hsinspect-lsp [--help|version|stack]\n"
+help = "hsinspect-lsp [--help|version]\n"
 
 -- TODO automated integration tests, e.g. using Emacs lsp-mode
 main :: IO ()
@@ -142,6 +142,8 @@ reactor lf inp = do
         case populated of
           Right _ -> pure ()
           Left err ->
+            -- TODO cache when we send errors so we don't end up spamming the
+            --      user, limit to one popup per package.
             Core.sendFunc lf . NotShowMessage .
               J.NotificationMessage "2.0" J.WindowShowMessage .
                 J.ShowMessageParams J.MtWarning $ T.pack err

@@ -4,8 +4,7 @@
 -- discovered from the file that the user is currently visiting.
 --
 -- This module gathers the definition of the context and the logic to infer it,
--- which assumes that .cabal (or package.yaml) and .ghc.flags files are present,
--- and that the build tool is either cabal-install or stack.
+-- which assumes that .cabal (or package.yaml) and .ghc.flags files are present.
 module HsInspect.LSP.Context where
 
 import Control.Monad.IO.Class (liftIO)
