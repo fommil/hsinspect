@@ -23,6 +23,7 @@ import qualified Language.Haskell.LSP.Core as Core
 import Language.Haskell.LSP.Messages
 import qualified Language.Haskell.LSP.Types as J
 import qualified Language.Haskell.LSP.Utility as U
+import qualified Language.Haskell.LSP.VFS as VFS
 import System.Environment (getArgs)
 import System.Exit
 import qualified System.Log.Logger as L
@@ -50,6 +51,19 @@ main = do
     0 -> exitSuccess
     c -> exitWith . ExitFailure $ c
 
+syncOptions :: J.TextDocumentSyncOptions
+syncOptions = J.TextDocumentSyncOptions
+  { J._openClose         = Just True
+  , J._change            = Just J.TdSyncIncremental
+  , J._willSave          = Just False
+  , J._willSaveWaitUntil = Just False
+  , J._save              = Just $ J.SaveOptions $ Just False
+  }
+
+lspOptions :: Core.Options
+lspOptions = def { Core.textDocumentSync = Just syncOptions
+                 }
+
 -- TODO replace haskell-lsp (which is huge!) with a minimal jsonrpc
 --      implementation that covers only the things we actually support. The
 --      advantage would be to speedup installation for the user.
@@ -70,11 +84,10 @@ run = flip E.catches [E.Handler ioExcept, E.Handler someExcept] $ do
       }
 
   flip E.finally L.removeAllHandlers $ do
-    Core.setupLogger Nothing [] L.DEBUG
-    CTRL.run callbacks (lspHandlers rin) lspOptions Nothing
+    Core.setupLogger (Just "/tmp/hsinspect.log") [] L.DEBUG
+    CTRL.run callbacks (lspHandlers rin) lspOptions (Just "/tmp/hsinspect-session.log")
 
   where
-    lspOptions = def
     ioExcept   (e :: E.IOException) = print e >> return 1
     someExcept (e :: E.SomeException) = print e >> return 1
 
@@ -88,6 +101,9 @@ reactor lf inp = do
   caches <- Caches <$> C.newCache Nothing <*> C.newCache Nothing <*> C.newCache Nothing
   let toPos (J.Position line col) = (line + 1, col + 1) -- LSP is zero indexed, ghc is one indexed
       toFile (J.TextDocumentIdentifier doc) = J.uriToFilePath doc
+      toFileAndNormalizedUri (J.TextDocumentIdentifier doc) =
+        (,) <$> J.uriToFilePath doc <*> pure (J.toNormalizedUri doc)
+
   forever $ do
     inval <- atomically $ readTChan inp
     case inval of
@@ -117,18 +133,39 @@ reactor lf inp = do
                          (Just $ J.Range (J.Position line' col') (J.Position line'' col''))
             Core.sendFunc lf . RspHover $ Core.makeResponseMessage req (Just halp)
 
-      ReqCompletion req@(J.RequestMessage _ _ _ (J.CompletionParams (toFile -> Just file) (toPos -> pos) _ _)) -> do
-        U.logs $ "reactor:complete:" ++ show (file, pos)
-        res <- runExceptT $ completionProvider caches file pos
+      ReqCompletion req@(J.RequestMessage _ _ _ (J.CompletionParams (toFileAndNormalizedUri -> Just (filePath, uri)) (toPos -> pos) _ _)) -> do
+        -- let fileUri :: J.NormalizedUri
+        -- -- fileUri  = notification ^. J.params
+        -- --                          . J.textDocument
+        -- --                          . J.uri
+        -- --                          . to J.toNormalizedUri
+        U.logs $ "reactor:complete:" ++ show (uri, pos)
+        mFile <- Core.getVirtualFileFunc lf uri
+        U.logs $ "mfile contents: " ++ show (VFS.virtualFileText <$> mFile)
         let none = J.Completions $ J.List []
-        case res of
-          Left err -> do
-            U.logs $ "reactor:complete:err:" ++ err
-            Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req none
+        case mFile of
+          Just file -> do
+            res <- runExceptT $ completionProvider caches filePath (VFS.virtualFileText file) pos
+            case res of
+              Left err -> do
+                U.logs $ "reactor:complete:err:" ++ err
+                Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req none
 
-          Right symbols -> do
-            let render txt = J.CompletionItem txt Nothing (J.List []) Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
-            Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req (J.Completions . J.List $ render <$> symbols)
+              Right symbols -> do
+                let render txt = J.CompletionItem txt Nothing (J.List []) Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+                Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req (J.Completions . J.List $ render <$> symbols)
+          Nothing -> do
+            Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req none
+        -- res <- runExceptT $ completionProvider caches file pos
+        -- let none = J.Completions $ J.List []
+        -- case res of
+        --   Left err -> do
+        --     U.logs $ "reactor:complete:err:" ++ err
+        --     Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req none
+
+        --   Right symbols -> do
+        --     let render txt = J.CompletionItem txt Nothing (J.List []) Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+        --     Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req (J.Completions . J.List $ render <$> symbols)
 
       -- preemptively populate caches
       NotDidOpenTextDocument (J.NotificationMessage _ _ params) -> do
@@ -164,6 +201,9 @@ lspHandlers rin =
          , Core.definitionHandler = Just $ passHandler ReqDefinition
          , Core.initializedHandler = Just $ passHandler NotInitialized
          , Core.didOpenTextDocumentNotificationHandler = Just $ passHandler NotDidOpenTextDocument
+         , Core.didSaveTextDocumentNotificationHandler   = Just $ passHandler NotDidSaveTextDocument
+         , Core.didChangeTextDocumentNotificationHandler = Just $ passHandler NotDidChangeTextDocument
+         , Core.didCloseTextDocumentNotificationHandler  = Just $ passHandler NotDidCloseTextDocument
          -- Emacs lsp-mode sends these, even though we don't ask for them...
          , Core.cancelNotificationHandler = Just $ passHandler NotCancelRequestFromClient
          , Core.responseHandler = Just $ \_ -> pure ()
