@@ -1,6 +1,6 @@
 cabal-version: 2.2
 name:          hsinspect-lsp
-version:       0.0.4
+version:       0.0.5
 synopsis:      LSP interface over the hsinspect binary.
 license:       GPL-3.0-or-later
 license-file:  LICENSE
@@ -9,7 +9,7 @@ maintainer:    Tseen She
 copyright:     2020 Tseen She
 tested-with:   GHC ^>=8.4.4 || ^>=8.6.5 || ^>=8.8.3
 category:      Building
-description:   Inspect @.hs@ files using the ghc api.
+description:   Inspect @.hs@ files using the ghc api over LSP.
 
 source-repository head
   type:     git
