@@ -152,7 +152,7 @@ reactor lf inp = do
                 Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req none
 
               Right symbols -> do
-                let render txt = J.CompletionItem txt Nothing (J.List []) Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+                let render (txt, typInfo) = J.CompletionItem txt Nothing (J.List []) typInfo Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
                 Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req (J.Completions . J.List $ render <$> symbols)
           Nothing -> do
             Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req none

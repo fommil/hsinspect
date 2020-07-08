@@ -131,7 +131,7 @@ hoverProvider caches file position = do
        in (range,) <$> firstJust matcher symbols
 
 -- TODO use the index to add optional type information
-completionProvider :: Caches -> FilePath -> Text -> (Int, Int) -> ExceptT String IO [Text]
+completionProvider :: Caches -> FilePath -> Text -> (Int, Int) -> ExceptT String IO [(Text, Maybe Text)]
 completionProvider caches file contents position = do
   ctx <- cachedContext caches file
   symbols <- cachedImports caches ctx file
@@ -140,13 +140,13 @@ completionProvider caches file contents position = do
   pure $ case traceShow (found, symbols) found of
     Nothing -> []
     Just (_, sym) -> do
-      let findNameAndType :: Text -> Import -> Text
+      let findNameAndType :: Text -> Import -> (Text, Maybe Text)
           findNameAndType name imp =
             case findType (_full imp) index of
-              Just typ -> name <> " :: " <> typ
-              Nothing -> name
+              Just typ -> (name, Just typ)
+              Nothing -> (name, Nothing)
 
-          matcher :: (Import -> Maybe Text) -> Import -> Maybe Text
+          matcher :: (Import -> Maybe Text) -> Import -> Maybe (Text, Maybe Text)
           matcher key imp = do
             pref <- key imp
             if T.isPrefixOf sym pref
