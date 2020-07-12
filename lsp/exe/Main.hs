@@ -16,6 +16,7 @@ import Control.Monad.STM
 import qualified Data.Cache as C
 import Data.Default
 import qualified Data.Text as T
+import qualified Data.List as L
 import Data.Typeable (typeOf)
 import HsInspect.LSP.Impl
 import qualified Language.Haskell.LSP.Control as CTRL
@@ -63,6 +64,18 @@ syncOptions = J.TextDocumentSyncOptions
 lspOptions :: Core.Options
 lspOptions = def { Core.textDocumentSync = Just syncOptions
                  }
+
+
+makeParameterInformation :: T.Text -> Maybe [J.ParameterInformation]
+makeParameterInformation typ = do
+  let cleanSig = T.strip <$> (T.splitOn "->" . L.last . T.splitOn "::") typ
+  let numParams = L.length cleanSig
+  if numParams > 1
+  then do
+    let params = L.take (numParams - 1) cleanSig
+    paramInfoList <- Just (map (\lbl -> (J.ParameterInformation lbl Nothing )) params)
+    return paramInfoList
+  else Nothing
 
 -- TODO replace haskell-lsp (which is huge!) with a minimal jsonrpc
 --      implementation that covers only the things we actually support. The
@@ -134,11 +147,6 @@ reactor lf inp = do
             Core.sendFunc lf . RspHover $ Core.makeResponseMessage req (Just halp)
 
       ReqCompletion req@(J.RequestMessage _ _ _ (J.CompletionParams (toFileAndNormalizedUri -> Just (filePath, uri)) (toPos -> pos) _ _)) -> do
-        -- let fileUri :: J.NormalizedUri
-        -- -- fileUri  = notification ^. J.params
-        -- --                          . J.textDocument
-        -- --                          . J.uri
-        -- --                          . to J.toNormalizedUri
         U.logs $ "reactor:complete:" ++ show (uri, pos)
         mFile <- Core.getVirtualFileFunc lf uri
         U.logs $ "mfile contents: " ++ show (VFS.virtualFileText <$> mFile)
@@ -156,16 +164,22 @@ reactor lf inp = do
                 Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req (J.Completions . J.List $ render <$> symbols)
           Nothing -> do
             Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req none
-        -- res <- runExceptT $ completionProvider caches file pos
-        -- let none = J.Completions $ J.List []
-        -- case res of
-        --   Left err -> do
-        --     U.logs $ "reactor:complete:err:" ++ err
-        --     Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req none
 
-        --   Right symbols -> do
-        --     let render txt = J.CompletionItem txt Nothing (J.List []) Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
-        --     Core.sendFunc lf . RspCompletion $ Core.makeResponseMessage req (J.Completions . J.List $ render <$> symbols)
+      ReqSignatureHelp req@(J.RequestMessage _ _ _ (J.TextDocumentPositionParams (toFile -> Just file) (toPos -> pos) _)) -> do
+        U.logs $ "reactor:signaturehelp:" ++ show (file, pos)
+        res <- runExceptT $ hoverProvider caches file pos
+        case res of
+          Left err -> do
+            U.logs $ "reactor:signaturehelp:err:" ++ err
+
+          Right Nothing -> do
+            U.logs $ "reactor:signaturehelp:nothing"
+
+          Right (Just (Span _ _ _ _, txt)) -> do
+            U.logs $ "reactor:signaturehelp:ok" ++ (show txt)
+            let sigInfo = J.SignatureInformation txt Nothing (makeParameterInformation txt)
+            let sigHelp = J.SignatureHelp (J.List [sigInfo]) Nothing Nothing
+            Core.sendFunc lf . RspSignatureHelp $ Core.makeResponseMessage req sigHelp
 
       -- preemptively populate caches
       NotDidOpenTextDocument (J.NotificationMessage _ _ params) -> do
@@ -186,7 +200,6 @@ reactor lf inp = do
                 J.ShowMessageParams J.MtWarning $ T.pack err
 
       -- TODO definitionProvider
-      -- TODO signatureHelpProvider
       -- TODO import symbol at point (CodeActionQuickFix?)
 
       om -> do
@@ -199,6 +212,7 @@ lspHandlers rin =
   in def { Core.hoverHandler = Just $ passHandler ReqHover
          , Core.completionHandler = Just $ passHandler ReqCompletion
          , Core.definitionHandler = Just $ passHandler ReqDefinition
+         , Core.signatureHelpHandler = Just $ passHandler ReqSignatureHelp
          , Core.initializedHandler = Just $ passHandler NotInitialized
          , Core.didOpenTextDocumentNotificationHandler = Just $ passHandler NotDidOpenTextDocument
          , Core.didSaveTextDocumentNotificationHandler   = Just $ passHandler NotDidSaveTextDocument
