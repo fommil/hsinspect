@@ -39,10 +39,8 @@ help =
   "  index                    - list all dependency packages, modules, terms and types.\n" ++
   "  packages /path/to/dir    - list all packages that are referenced by sources in this dir.\n"
 
--- Possible backends:
---
--- https://github.com/mpickering/hie-bios
--- http://hackage.haskell.org/package/cabal-helper
+-- TODO support an option to search for .ghc.{flags, path} files and use them
+
 main :: IO ()
 main = do
   (break ("--" ==) -> (args, filterFlags -> flags)) <- getArgs
