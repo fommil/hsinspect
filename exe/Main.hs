@@ -87,6 +87,7 @@ main = do
       "packages" : rest -> do
         hits <- packages
         respond rest hits
+      -- TODO make parseTypes available on the command line
       _ ->
         liftIO $ error "invalid parameters"
 

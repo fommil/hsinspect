@@ -1,6 +1,6 @@
 cabal-version: 2.2
 name:          hsinspect
-version:       0.0.13
+version:       0.0.14
 synopsis:      Inspect Haskell source files.
 license:       GPL-3.0-or-later
 license-file:  LICENSE
@@ -27,8 +27,10 @@ common deps
     , base        >=4.11 && <5
     , containers
     , directory
+    , filepath
     , ghc
     , ghc-boot
+    , text
     , time
 
   ghc-options:      -Wall -Werror=missing-home-modules -Werror=orphans
@@ -56,5 +58,6 @@ library
     HsInspect.Json
     HsInspect.Packages
     HsInspect.Sexp
+    HsInspect.TypeParser
     HsInspect.Util
     HsInspect.Workarounds

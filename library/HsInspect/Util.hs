@@ -3,7 +3,7 @@
 module HsInspect.Util where
 
 import Control.Monad.IO.Class
-import Data.List (isSuffixOf, nub)
+import Data.List (find, isSuffixOf, nub)
 import Data.Maybe (catMaybes)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -11,6 +11,7 @@ import DynFlags (unsafeGlobalDynFlags)
 import qualified GHC as GHC
 import Outputable (Outputable, showPpr)
 import System.Directory (doesDirectoryExist, listDirectory, makeAbsolute)
+import System.FilePath (takeDirectory, takeFileName, (</>))
 
 homeSources :: GHC.GhcMonad m => m [FilePath]
 homeSources = do
@@ -31,6 +32,18 @@ getTargetModules = do
     getModule GHC.Target{GHC.targetId} = case targetId of
       GHC.TargetModule m -> Just m
       GHC.TargetFile _ _ -> Nothing
+
+-- returns the first file that matches the predicate
+locateDominating :: (String -> Bool) -> FilePath -> IO (Maybe FilePath)
+locateDominating p dir = do
+  files <- listDirectory dir
+  let parent = takeDirectory dir
+  case find p $ takeFileName <$> files of
+    Just file -> pure . Just $ dir </> file
+    Nothing ->
+      if parent == dir
+       then pure Nothing
+       else locateDominating p parent
 
 walkSuffix :: String -> FilePath -> IO [FilePath]
 walkSuffix suffix dir = filter (suffix `isSuffixOf`) <$> walk dir

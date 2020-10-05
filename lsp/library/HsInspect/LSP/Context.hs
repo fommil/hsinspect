@@ -11,6 +11,7 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except (ExceptT(..), throwE)
 import Data.List (isSuffixOf)
 import HsInspect.LSP.Util
+import HsInspect.Util (locateDominating)
 import System.Directory (findExecutablesInDirectories)
 import System.FilePath
 
@@ -53,13 +54,13 @@ discoverGhcflags :: FilePath -> ExceptT String IO FilePath
 discoverGhcflags file = do
   let dir = takeDirectory file
   failWithM ("There must be a .ghc.flags file. " ++ help_ghcflags) $
-   locateDominatingFile (".ghc.flags" ==) dir
+   locateDominating (".ghc.flags" ==) dir
 
 discoverGhcpath :: FilePath -> ExceptT String IO FilePath
 discoverGhcpath file = do
   let dir = takeDirectory file
   failWithM ("There must be a .ghc.path file. " ++ help_ghcflags) $
-    locateDominatingFile (".ghc.path" ==) dir
+    locateDominating (".ghc.path" ==) dir
 
 -- note that any formatting in these messages are stripped
 help_ghcflags :: String

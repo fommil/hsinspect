@@ -15,7 +15,7 @@ import DynFlags (parseDynamicFilePragma)
 import FastString
 import qualified GHC as GHC
 import HeaderInfo (getOptions)
-import HscTypes (Target(..), TargetId(..))
+import HscTypes (HscEnv, Target(..), TargetId(..))
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
 import GHC.Hs.ImpExp (ImportDecl(..))
 #else
@@ -36,27 +36,31 @@ import OccName (emptyOccEnv)
 import TcRnTypes (tcg_rdr_env)
 #endif
 
-parseHeader' :: GHC.GhcMonad m => FilePath -> m ([String], GHC.HsModule GHC.GhcPs)
-parseHeader' file = do
-  sess <- GHC.getSession
+-- applies CPP rules to the input file and extracts the pragmas,
+-- a more portable alternative to GHC.hGetStringBuffer
+mkCppState :: HscEnv -> FilePath -> IO (PState, [Located String])
+mkCppState sess file = do
 #if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
-  pp <- liftIO $ preprocess sess file Nothing Nothing
+  pp <- preprocess sess file Nothing Nothing
   let (dflags, tmp) = case pp of
         Left _ -> error $ "preprocessing failed " <> show file
         Right success -> success
 #else
-  (dflags, tmp) <- liftIO $ preprocess sess (file, Nothing)
+  (dflags, tmp) <- preprocess sess (file, Nothing)
 #endif
-  full <- liftIO $ hGetStringBuffer tmp
+  full <- hGetStringBuffer tmp
   when (".hscpp" `isSuffixOf` tmp) $
     liftIO . removeFile $ tmp
   let pragmas = getOptions dflags full file
       loc  = mkRealSrcLoc (mkFastString file) 1 1
-  -- FIXME strip out any GHC_OPTIONS that use -pgmF so we don't call external
-  --       tools. This also means we can lose the .ghc.path feature from the
-  --       plugin.
   (dflags', _, _) <- parseDynamicFilePragma dflags pragmas
-  case unP parseHeader (mkPState dflags' full loc) of
+  pure $ (mkPState dflags' full loc, pragmas)
+
+parseHeader' :: GHC.GhcMonad m => FilePath -> m ([String], GHC.HsModule GHC.GhcPs)
+parseHeader' file = do
+  sess <- GHC.getSession
+  (pstate, pragmas) <- liftIO $ mkCppState sess file
+  case unP parseHeader pstate of
     POk _ (L _ hsmod) -> pure (unLoc <$> pragmas, hsmod)
     _ -> error $ "parseHeader failed for " <> file
 

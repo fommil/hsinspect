@@ -4,8 +4,7 @@ module HsInspect.LSP.Util where
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except (ExceptT(..))
 import Data.List (intercalate)
-import qualified Data.List as L
-import System.Directory (listDirectory)
+import HsInspect.Util (locateDominating)
 import System.Environment (getEnvironment)
 import System.Exit (ExitCode(..))
 import System.FilePath
@@ -15,20 +14,8 @@ import qualified System.Process as P
 -- the first parent directory where a file or directory name matches the predicate
 locateDominatingDir :: (String -> Bool) -> FilePath -> IO (Maybe FilePath)
 locateDominatingDir p dir = do
-  file' <- locateDominatingFile p dir
+  file' <- locateDominating p dir
   pure $ takeDirectory <$> file'
-
--- same as locateDominating but returns the first file that matches the predicate
-locateDominatingFile :: (String -> Bool) -> FilePath -> IO (Maybe FilePath)
-locateDominatingFile p dir = do
-  files <- listDirectory dir
-  let parent = takeDirectory dir
-  case L.find p $ takeFileName <$> files of
-    Just file -> pure . Just $ dir </> file
-    Nothing ->
-      if parent == dir
-       then pure Nothing
-       else locateDominatingFile p parent
 
 shell :: String -> [String] -> Maybe FilePath -> Maybe String -> [(String, String)] -> ExceptT String IO String
 shell command args cwd path env_extra = ExceptT $ do
