@@ -9,6 +9,7 @@ import Control.Monad.IO.Class
 import Data.List (find, isPrefixOf)
 import qualified Data.List as L
 import Data.Maybe (catMaybes)
+import qualified Data.Text.IO as T
 import DynFlags (parseDynamicFlagsCmdLine, updOptLevel)
 import qualified EnumSet as EnumSet
 import qualified GHC as GHC
@@ -71,12 +72,12 @@ main = do
     homeModules <- inferHomeModules
     GHC.setTargets $ mkTarget <$> homeModules
 
-    let respond rest (S.filterNil . S.toSexp -> a) = liftIO . putStrLn $
+    let respond rest (S.filterNil . S.toSexp -> a) = liftIO $
           if (elem "--json" rest)
           then case sexpToJson a of
             Left err -> error err
-            Right j -> encodeJson dflags' j
-          else S.render a
+            Right j -> putStrLn $ encodeJson dflags' j
+          else T.putStrLn $ S.render a
     case args of
       "imports" : file : rest -> do
         quals <- imports file

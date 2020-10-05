@@ -10,6 +10,8 @@ where
 
 import Data.List (sort)
 import Data.Maybe (fromJust)
+import Data.Text (Text)
+import qualified Data.Text as T
 import qualified GHC as GHC
 import HscTypes (TargetId(..))
 import HsInspect.Sexp
@@ -41,12 +43,12 @@ describe GRE {gre_name, gre_imp} = describe' <$> gre_imp
       let ln =
             if is_qual
               then Nothing
-              else Just $ showGhc gre_name
+              else Just . T.pack $ showGhc gre_name
           lqn =
             if is_mod == is_as
               then Nothing
-              else Just $ showGhc is_as ++ "." ++ showGhc gre_name
-          fqn = showGhc is_mod ++ "." ++ showGhc gre_name
+              else Just . T.pack $ showGhc is_as ++ "." ++ showGhc gre_name
+          fqn = T.pack $ showGhc is_mod ++ "." ++ showGhc gre_name
        in Qualified ln lqn fqn
 
 -- 1. local name
@@ -54,9 +56,9 @@ describe GRE {gre_name, gre_imp} = describe' <$> gre_imp
 -- 3. fully qualified name
 data Qualified
   = Qualified
-      (Maybe String)
-      (Maybe String)
-      String
+      (Maybe Text)
+      (Maybe Text)
+      Text
   deriving (Eq, Ord, Show)
 {- BOILERPLATE Qualified ToSexp field=[local,qual,full] -}
 {- BOILERPLATE START -}

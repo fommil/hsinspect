@@ -18,6 +18,8 @@ import Data.List (isInfixOf, sort)
 import Data.Maybe (catMaybes, mapMaybe, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Text (Text)
+import qualified Data.Text as T
 import qualified DataCon as GHC
 import qualified DynFlags as GHC
 import qualified GHC
@@ -117,7 +119,7 @@ getSymbols unitid inplace haddocks exposed dirs = do
   let entries = sort $ uncurry mkEntries <$> symbols
       mkEntries m things = ModuleEntries (moduleName m) (sort $ renderThings things)
       renderThings things = catMaybes $ (uncurry $ tyrender dflags unitid) <$> things
-  pure $ PackageEntries srcid inplace entries haddocks
+  pure $ PackageEntries srcid inplace entries (T.pack <$> haddocks)
 
 -- for a .hi file returns the module and a list of all things (with types
 -- resolved) in that module and their original module if they are re-exported.
@@ -147,8 +149,8 @@ tyrender :: GHC.DynFlags -> UnitId -> Maybe GHC.Module -> GHC.TcTyThing -> Maybe
 tyrender dflags unitid m' (GHC.AGlobal thing) =
   let
     m = mkExported dflags unitid <$> m'
-    shw :: GHC.Outputable m => m -> String
-    shw = showPpr dflags
+    shw :: GHC.Outputable m => m -> Text
+    shw = T.pack . showPpr dflags
    in case thing of
     (GHC.AnId var) -> Just $ IdEntry m
       (shw $ GHC.idName var)
@@ -158,17 +160,17 @@ tyrender dflags unitid m' (GHC.AGlobal thing) =
       (shw $ GHC.dataConUserType dc)
     (GHC.AConLike (GHC.PatSynCon ps)) -> Just $ PatSynEntry m
       (shw $ GHC.getName ps)
-      (showSDoc dflags $ GHC.pprPatSynType ps )
+      (T.pack . showSDoc dflags $ GHC.pprPatSynType ps )
     (GHC.ATyCon tc) -> Just $ TyConEntry m
       (shw $ GHC.tyConName tc)
       (shw $ GHC.tyConFlavour tc)
     _ -> Nothing
 tyrender _ _ _ _ = Nothing
 
-data Entry = IdEntry (Maybe Exported) String String -- ^ name type
-           | ConEntry (Maybe Exported) String String -- ^ name type
-           | PatSynEntry (Maybe Exported) String String -- ^ name orig
-           | TyConEntry (Maybe Exported) String String -- ^ type flavour
+data Entry = IdEntry (Maybe Exported) Text Text -- ^ name type
+           | ConEntry (Maybe Exported) Text Text -- ^ name type
+           | PatSynEntry (Maybe Exported) Text Text -- ^ name orig
+           | TyConEntry (Maybe Exported) Text Text -- ^ type flavour
   deriving (Eq, Ord)
 {- BOILERPLATE Entry ToSexp
    field={IdEntry:[export,name,type],
@@ -202,7 +204,7 @@ instance ToSexp ModuleEntries where
 --
 -- Users should type `cabal haddock --enable-documentation` to populate the docs
 -- of their dependencies and local projects.
-type Haddocks = [FilePath]
+type Haddocks = [Text]
 
 -- Bool indicates if this is an -inplace package
 data PackageEntries = PackageEntries (Maybe SourcePackageId) Bool [ModuleEntries] Haddocks

@@ -1,13 +1,12 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE IncoherentInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
 
 -- | Very minimal ADT for outputting some S-Expressions.
 module HsInspect.Sexp where
 
-import Data.List (intercalate)
-import Data.String
+import Data.String (IsString, fromString)
+import Data.Text (Text)
+import qualified Data.Text as T
 import FastString (unpackFS)
 import Json (escapeJsonString)
 import Module (ModuleName, moduleNameString)
@@ -16,8 +15,8 @@ import PackageConfig (PackageName(..), SourcePackageId(..))
 data Sexp
   = SexpCons Sexp Sexp
   | SexpNil
-  | SexpString String
-  | SexpSymbol String
+  | SexpString Text
+  | SexpSymbol Text
 
 list :: [Sexp] -> Sexp
 list = foldr SexpCons SexpNil
@@ -28,14 +27,14 @@ toList (SexpCons a b) = (a :) <$> toList b
 toList _ = Nothing
 
 instance IsString Sexp where
-  fromString = SexpSymbol
+  fromString = SexpSymbol . T.pack
 
 alist :: [(Sexp, Sexp)] -> Sexp
 alist els = list $ mkEl =<< els
   where
     mkEl (k, v) = [SexpCons k v]
 
-toAList :: Sexp -> Maybe [(String, Sexp)]
+toAList :: Sexp -> Maybe [(Text, Sexp)]
 toAList SexpNil = Just []
 toAList (SexpCons (SexpCons (SexpSymbol k) v) rest) = ((k, v) :) <$> toAList rest
 toAList _ = Nothing
@@ -46,11 +45,8 @@ class ToSexp a where
 instance ToSexp Sexp where
   toSexp = id
 
--- TODO this is a horrible instance because it requires lang extensions and is
--- otherwise slow. Prefer Text everywhere (which needs a convenience FastString
--- -> Text)
-instance ToSexp String where
-  toSexp s = SexpString s
+instance ToSexp Text where
+  toSexp = SexpString
 
 instance ToSexp Bool where
   toSexp False = SexpNil
@@ -64,13 +60,13 @@ instance ToSexp a => ToSexp (Maybe a) where
   toSexp Nothing = SexpNil
 
 instance ToSexp SourcePackageId where
-  toSexp (SourcePackageId fs) = SexpString $ unpackFS fs
+  toSexp (SourcePackageId fs) = SexpString . T.pack $ unpackFS fs
 
 instance ToSexp ModuleName where
-  toSexp = SexpString . moduleNameString
+  toSexp = SexpString . T.pack . moduleNameString
 
 instance ToSexp PackageName where
-  toSexp (PackageName fs) = SexpString $ unpackFS fs
+  toSexp (PackageName fs) = SexpString . T.pack $ unpackFS fs
 
 filterNil :: Sexp -> Sexp
 filterNil SexpNil = SexpNil
@@ -79,9 +75,10 @@ filterNil (SexpCons car cdr) = (SexpCons (filterNil car) (filterNil cdr))
 filterNil (SexpString s) = SexpString s
 filterNil (SexpSymbol s) = SexpSymbol s
 
-render :: Sexp -> String
+render :: Sexp -> Text
 render SexpNil = "nil"
-render (toList -> Just ss) = "(" ++ (intercalate " " $ render <$> ss) ++ ")\n"
-render (SexpCons a b) = "(" ++ render a ++ " . " ++ render b ++ ")\n"
-render (SexpString s) = "\"" ++ escapeJsonString s ++ "\""
-render (SexpSymbol a) = escapeJsonString a
+render (toList -> Just ss) = "(" <> (T.intercalate " " $ render <$> ss) <> ")\n"
+render (SexpCons a b) = "(" <> render a <> " . " <> render b <> ")\n"
+render (SexpString s) = "\"" <> (T.pack . escapeJsonString $ T.unpack s) <> "\""
+render (SexpSymbol a) = T.pack . escapeJsonString $ T.unpack a
+-- TODO write our own escapeString to avoid a ghc dep and improve perf
