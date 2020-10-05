@@ -8,7 +8,10 @@ module HsInspect.Sexp where
 
 import Data.List (intercalate)
 import Data.String
+import FastString (unpackFS)
 import Json (escapeJsonString)
+import Module (ModuleName, moduleNameString)
+import PackageConfig (PackageName(..), SourcePackageId(..))
 
 data Sexp
   = SexpCons Sexp Sexp
@@ -43,6 +46,9 @@ class ToSexp a where
 instance ToSexp Sexp where
   toSexp = id
 
+-- TODO this is a horrible instance because it requires lang extensions and is
+-- otherwise slow. Prefer Text everywhere (which needs a convenience FastString
+-- -> Text)
 instance ToSexp String where
   toSexp s = SexpString s
 
@@ -56,6 +62,15 @@ instance ToSexp a => ToSexp [a] where
 instance ToSexp a => ToSexp (Maybe a) where
   toSexp (Just a) = toSexp a
   toSexp Nothing = SexpNil
+
+instance ToSexp SourcePackageId where
+  toSexp (SourcePackageId fs) = SexpString $ unpackFS fs
+
+instance ToSexp ModuleName where
+  toSexp = SexpString . moduleNameString
+
+instance ToSexp PackageName where
+  toSexp (PackageName fs) = SexpString $ unpackFS fs
 
 filterNil :: Sexp -> Sexp
 filterNil SexpNil = SexpNil

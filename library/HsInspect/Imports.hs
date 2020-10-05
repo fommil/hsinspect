@@ -58,11 +58,8 @@ data Qualified
       (Maybe String)
       String
   deriving (Eq, Ord, Show)
-
+{- BOILERPLATE Qualified ToSexp field=[local,qual,full] -}
+{- BOILERPLATE START -}
 instance ToSexp Qualified where
-  toSexp (Qualified ln lqn fqn) =
-    alist
-      [ ("local", toSexp ln),
-        ("qual", toSexp lqn),
-        ("full", toSexp fqn)
-      ]
+  toSexp (Qualified p_1_1 p_1_2 p_1_3) = alist [("local", toSexp p_1_1), ("qual", toSexp p_1_2), ("full", toSexp p_1_3)]
+{- BOILERPLATE END -}

@@ -1,0 +1,6 @@
+{Instance ToSexp}
+{Product
+  toSexp {Uncons} = alist {Field {[]}{[}{("{Custom field {FieldName}}", toSexp {Param})}{, }{]}}
+}{Sum
+  toSexp {Uncons} = alist $ ("class", "{Custom class}") {Field {}{: [}{("{Custom field {FieldName}}", toSexp {Param})}{, }{]}}
+}

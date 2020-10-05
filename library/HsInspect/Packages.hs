@@ -7,7 +7,6 @@ module HsInspect.Packages (packages, PkgSummary) where
 
 import Control.Monad (join, void)
 import Control.Monad.IO.Class (liftIO)
-import Data.Coerce
 import Data.List (delete, nub, nubBy, sort, (\\))
 import Data.Maybe (catMaybes, mapMaybe)
 import Data.Set (Set)
@@ -75,8 +74,8 @@ qModule (GHC.ImpSpec (GHC.ImpDeclSpec{GHC.is_mod}) _) = (is_mod, Nothing)
 data PkgSummary = PkgSummary [GHC.PackageName] [GHC.PackageName]
   deriving (Eq, Ord)
 
+{- BOILERPLATE PkgSummary ToSexp field=[used,unused] -}
+{- BOILERPLATE START -}
 instance ToSexp PkgSummary where
-  toSexp (PkgSummary used unused) =
-    alist [ ("used", toS used)
-          , ("unused", toS unused) ]
-    where toS ids = toSexp $ unpackFS . coerce <$> ids
+  toSexp (PkgSummary p_1_1 p_1_2) = alist [("used", toSexp p_1_1), ("unused", toSexp p_1_2)]
+{- BOILERPLATE END -}

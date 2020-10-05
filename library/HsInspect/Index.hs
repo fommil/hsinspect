@@ -14,14 +14,12 @@ import BinIface (CheckHiWay(..), TraceBinIFaceReading(..), readBinIface)
 import qualified ConLike as GHC
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Coerce
 import Data.List (isInfixOf, sort)
 import Data.Maybe (catMaybes, mapMaybe, maybeToList)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified DataCon as GHC
 import qualified DynFlags as GHC
-import FastString (unpackFS)
 import qualified GHC
 import GHC.PackageDb
 import qualified GHC.PackageDb as GHC
@@ -172,9 +170,31 @@ data Entry = IdEntry (Maybe Exported) String String -- ^ name type
            | PatSynEntry (Maybe Exported) String String -- ^ name orig
            | TyConEntry (Maybe Exported) String String -- ^ type flavour
   deriving (Eq, Ord)
+{- BOILERPLATE Entry ToSexp
+   field={IdEntry:[export,name,type],
+          ConEntry:[export,name,type],
+          PatSynEntry:[export,name,type],
+          TyConEntry:[export,type,flavour]}
+   class={IdEntry:id,
+          ConEntry:con,
+          PatSynEntry:pat,
+          TyConEntry:tycon}
+-}
+{- BOILERPLATE START -}
+instance ToSexp Entry where
+  toSexp (IdEntry p_1_1 p_1_2 p_1_3) = alist $ ("class", "id") : [("export", toSexp p_1_1), ("name", toSexp p_1_2), ("type", toSexp p_1_3)]
+  toSexp (ConEntry p_1_1 p_1_2 p_1_3) = alist $ ("class", "con") : [("export", toSexp p_1_1), ("name", toSexp p_1_2), ("type", toSexp p_1_3)]
+  toSexp (PatSynEntry p_1_1 p_1_2 p_1_3) = alist $ ("class", "pat") : [("export", toSexp p_1_1), ("name", toSexp p_1_2), ("type", toSexp p_1_3)]
+  toSexp (TyConEntry p_1_1 p_1_2 p_1_3) = alist $ ("class", "tycon") : [("export", toSexp p_1_1), ("type", toSexp p_1_2), ("flavour", toSexp p_1_3)]
+{- BOILERPLATE END -}
 
 data ModuleEntries = ModuleEntries GHC.ModuleName [Entry]
   deriving (Eq, Ord)
+{- BOILERPLATE ModuleEntries ToSexp field=[module,ids] -}
+{- BOILERPLATE START -}
+instance ToSexp ModuleEntries where
+  toSexp (ModuleEntries p_1_1 p_1_2) = alist [("module", toSexp p_1_1), ("ids", toSexp p_1_2)]
+{- BOILERPLATE END -}
 
 -- The haddocks serve a dual purpose: not only do they point to where haddocks
 -- might be, they give a hint to the text editor where the sources for this
@@ -186,10 +206,21 @@ type Haddocks = [FilePath]
 
 -- Bool indicates if this is an -inplace package
 data PackageEntries = PackageEntries (Maybe SourcePackageId) Bool [ModuleEntries] Haddocks
+{- BOILERPLATE PackageEntries ToSexp field=[srcid,inplace,modules,haddocks] -}
+{- BOILERPLATE START -}
+instance ToSexp PackageEntries where
+  toSexp (PackageEntries p_1_1 p_1_2 p_1_3 p_1_4) = alist [("srcid", toSexp p_1_1), ("inplace", toSexp p_1_2), ("modules", toSexp p_1_3), ("haddocks", toSexp p_1_4)]
+{- BOILERPLATE END -}
 
 -- srcid is Nothing if it matches the re-export location
 data Exported = Exported (Maybe SourcePackageId) GHC.ModuleName
   deriving (Eq, Ord)
+
+{- BOILERPLATE Exported ToSexp field=[srcid, module] -}
+{- BOILERPLATE START -}
+instance ToSexp Exported where
+  toSexp (Exported p_1_1 p_1_2) = alist [("srcid", toSexp p_1_1), ("module", toSexp p_1_2)]
+{- BOILERPLATE END -}
 
 mkExported :: GHC.DynFlags -> UnitId -> Module -> Exported
 mkExported dflags unitid m =
@@ -200,44 +231,3 @@ mkExported dflags unitid m =
            else sourcePackageId <$> lookupPackage dflags unitid')
         (moduleName m)
 
-instance ToSexp Exported where
-  toSexp (Exported srcid name) = alist
-    [ ("srcid", toSexp $ unpackFS . coerce <$> srcid),
-      ("module", SexpString . moduleNameString $ name) ]
-
-instance ToSexp Entry where
-  toSexp (IdEntry m name typ) = alist
-    [ ("name", SexpString name),
-      ("type", SexpString typ),
-      ("class", "id"),
-      ("export", toSexp m)]
-  toSexp (ConEntry m name typ) = alist
-    [ ("name", SexpString name),
-      ("type", SexpString typ),
-      ("class", "con"),
-      ("export", toSexp m) ]
-  toSexp (PatSynEntry m name typ) = alist
-    [ ("name", SexpString name),
-      ("type", SexpString typ),
-      ("class", "pat"),
-      ("export", toSexp m) ]
-  toSexp (TyConEntry m typ flavour) = alist
-    [ ("type", SexpString typ),
-      ("class", "tycon"),
-      ("flavour", SexpString flavour),
-      ("export", toSexp m) ]
-
-instance ToSexp ModuleEntries where
-  toSexp (ModuleEntries modl entries) =
-    alist
-      [ ("module", SexpString . moduleNameString $ modl),
-        ("ids", toSexp entries)
-      ]
-
-instance ToSexp PackageEntries where
-  toSexp (PackageEntries srcid inplace modules haddocks) =
-    alist
-      [ ("srcid", toSexp $ unpackFS . coerce <$> srcid),
-        ("inplace", toSexp inplace),
-        ("modules", toSexp modules),
-        ("haddocks", toSexp haddocks) ]
