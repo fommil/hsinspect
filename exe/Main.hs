@@ -18,6 +18,7 @@ import HsInspect.Index
 import HsInspect.Json
 import HsInspect.Packages
 import HsInspect.Sexp as S
+import HsInspect.Types
 import HsInspect.Util
 import HsInspect.Workarounds
 import System.Environment (getArgs)
@@ -40,7 +41,7 @@ help =
   "  index                    - list all dependency packages, modules, terms and types.\n" ++
   "  packages /path/to/dir    - list all packages that are referenced by sources in this dir.\n"
 
--- TODO support an option to search for .ghc.{flags, path} files and use them
+-- FIXME search for .ghc.{flags, path} files and use them, expose the setup logic
 
 main :: IO ()
 main = do
@@ -88,7 +89,9 @@ main = do
       "packages" : rest -> do
         hits <- packages
         respond rest hits
-      -- TODO make parseTypes available on the command line
+      "types" : file : rest -> do
+        hits <- types file
+        respond rest hits
       _ ->
         liftIO $ error "invalid parameters"
 

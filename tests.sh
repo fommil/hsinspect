@@ -40,6 +40,11 @@ for t in * ; do
     # to generate haskell-tng test data
     # $HSINSPECT index -- $GHC_FLAGS | sed "s|${HOME}[^\"]*\"|REDACTED\"|g" > "library/$GHC_VERSION.index.sexp"
 
+    for f in "library/Medley/Types.hs" ; do
+        $HSINSPECT types "$f" -- $GHC_FLAGS > "$f.$GHC_VERSION.types.sexp"
+        $HSINSPECT types "$f" --json -- $GHC_FLAGS | python3 -m json.tool --sort-keys > "$f.$GHC_VERSION.types.json"
+    done
+
     # the package command requires all files to be compilable
     cabal v2-build --constraint="medley -uncompilable"
     GHC_FLAGS=$(cat library/.ghc.flags)

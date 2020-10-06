@@ -1,15 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
-module HsInspect.TypeParser where
+module HsInspect.Types where
 
 import Control.Exception (throwIO)
+import Control.Monad.IO.Class (liftIO)
 import Data.List (sortOn)
 import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified DynFlags as GHC
 import GHC (HscEnv)
 import qualified GHC as GHC
+import HsInspect.Sexp
 import qualified HsInspect.Util as H
 import HsInspect.Workarounds (mkCppState)
 import qualified Lexer as GHC
@@ -20,13 +23,46 @@ data Type = ProductType Text [Text] Text [Text]  -- ^^ type tparams cons [param 
           | RecordType Text [Text] Text [(Text, Text)] -- ^^ type tparams cons [(fieldname, param type)]
           | SumType Text [Text] [(Text, [Text])] -- ^^ type tparams [(cons, param types)] (no records)
   deriving (Eq, Show)
+{- BOILERPLATE Type ToSexp
+   field={ProductType:[type,tparams,cons,params],
+          RecordType:[type,tparams,cons,fields],
+          SumType:[type,tparams,data]}
+   class={ProductType:product,
+          RecordType:record,
+          SumType:sum}
+-}
+{- BOILERPLATE START -}
+instance ToSexp Type where
+  toSexp (ProductType p_1_1 p_1_2 p_1_3 p_1_4) = alist $ ("class", "product") : [("type", toSexp p_1_1), ("tparams", toSexp p_1_2), ("cons", toSexp p_1_3), ("params", toSexp p_1_4)]
+  toSexp (RecordType p_1_1 p_1_2 p_1_3 p_1_4) = alist $ ("class", "record") : [("type", toSexp p_1_1), ("tparams", toSexp p_1_2), ("cons", toSexp p_1_3), ("fields", toSexp p_1_4)]
+  toSexp (SumType p_1_1 p_1_2 p_1_3) = alist $ ("class", "sum") : [("type", toSexp p_1_1), ("tparams", toSexp p_1_2), ("data", toSexp p_1_3)]
+{- BOILERPLATE END -}
 
 -- line, col (1-indexed)
 data Pos = Pos Int Int
   deriving (Eq, Ord, Show)
+{- BOILERPLATE Pos ToSexp field=[line,col] -}
+{- BOILERPLATE START -}
+instance ToSexp Pos where
+  toSexp (Pos p_1_1 p_1_2) = alist [("line", toSexp p_1_1), ("col", toSexp p_1_2)]
+{- BOILERPLATE END -}
 
 data Comment = Comment Text Pos Pos -- text start end
   deriving (Eq, Show)
+{- BOILERPLATE Comment ToSexp field=[text,start,end] -}
+{- BOILERPLATE START -}
+instance ToSexp Comment where
+  toSexp (Comment p_1_1 p_1_2 p_1_3) = alist [("text", toSexp p_1_1), ("start", toSexp p_1_2), ("end", toSexp p_1_3)]
+{- BOILERPLATE END -}
+
+-- FIXME add a Bool to each field to indicate if it is polymorphic
+
+types :: GHC.GhcMonad m => FilePath -> m ([Type], [Comment])
+types file = do
+  dflags <- GHC.getSessionDynFlags
+  _ <- GHC.setSessionDynFlags $ GHC.gopt_set dflags GHC.Opt_KeepRawTokenStream
+  env <- GHC.getSession
+  liftIO $ parseTypes env file
 
 parseTypes :: HscEnv -> FilePath -> IO ([Type], [Comment])
 parseTypes env file = do

@@ -17,6 +17,7 @@ data Sexp
   | SexpNil
   | SexpString Text
   | SexpSymbol Text
+  | SexpInt Int
 
 list :: [Sexp] -> Sexp
 list = foldr SexpCons SexpNil
@@ -52,8 +53,14 @@ instance ToSexp Bool where
   toSexp False = SexpNil
   toSexp True = SexpSymbol "t"
 
+instance ToSexp Int where
+  toSexp = SexpInt
+
 instance ToSexp a => ToSexp [a] where
   toSexp as = list $ toSexp <$> as
+
+instance (ToSexp a1, ToSexp a2) => ToSexp (a1, a2) where
+  toSexp (a1, a2) = list [toSexp a1, toSexp a2]
 
 instance ToSexp a => ToSexp (Maybe a) where
   toSexp (Just a) = toSexp a
@@ -74,6 +81,7 @@ filterNil (SexpCons (SexpCons (SexpSymbol _) SexpNil) rest) = filterNil rest
 filterNil (SexpCons car cdr) = (SexpCons (filterNil car) (filterNil cdr))
 filterNil (SexpString s) = SexpString s
 filterNil (SexpSymbol s) = SexpSymbol s
+filterNil (SexpInt i) = SexpInt i
 
 render :: Sexp -> Text
 render SexpNil = "nil"
@@ -81,4 +89,5 @@ render (toList -> Just ss) = "(" <> (T.intercalate " " $ render <$> ss) <> ")\n"
 render (SexpCons a b) = "(" <> render a <> " . " <> render b <> ")\n"
 render (SexpString s) = "\"" <> (T.pack . escapeJsonString $ T.unpack s) <> "\""
 render (SexpSymbol a) = T.pack . escapeJsonString $ T.unpack a
+render (SexpInt i) = T.pack $ show i
 -- TODO write our own escapeString to avoid a ghc dep and improve perf

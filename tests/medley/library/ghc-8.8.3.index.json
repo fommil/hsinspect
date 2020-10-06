@@ -5,6 +5,111 @@
             {
                 "ids": [
                     {
+                        "class": "con",
+                        "name": ":|",
+                        "type": "String -> String -> InfixProd"
+                    },
+                    {
+                        "class": "con",
+                        "name": ":||",
+                        "type": "String -> String -> InfixSum"
+                    },
+                    {
+                        "class": "con",
+                        "name": ":|||",
+                        "type": "String -> String -> InfixSum"
+                    },
+                    {
+                        "class": "con",
+                        "name": "Admin",
+                        "type": "forall a. [a] -> String -> Action a"
+                    },
+                    {
+                        "class": "con",
+                        "name": "Coordy1",
+                        "type": "Double -> Double -> Coord1"
+                    },
+                    {
+                        "class": "con",
+                        "name": "Coordy2",
+                        "type": "Double -> Double -> Coord2"
+                    },
+                    {
+                        "class": "con",
+                        "name": "England",
+                        "type": "Int -> Int -> Union"
+                    },
+                    {
+                        "class": "con",
+                        "name": "Logger",
+                        "type": "forall (m :: * -> *). (String -> m ()) -> Logger m"
+                    },
+                    {
+                        "class": "con",
+                        "name": "Scotland",
+                        "type": "Union"
+                    },
+                    {
+                        "class": "con",
+                        "name": "T",
+                        "type": "forall a b. a -> b -> Double -> Things a b"
+                    },
+                    {
+                        "class": "con",
+                        "name": "User",
+                        "type": "forall a. a -> String -> Action a"
+                    },
+                    {
+                        "class": "con",
+                        "name": "Wales",
+                        "type": "String -> Union"
+                    },
+                    {
+                        "class": "tycon",
+                        "flavour": "data type",
+                        "type": "Action"
+                    },
+                    {
+                        "class": "tycon",
+                        "flavour": "data type",
+                        "type": "Coord1"
+                    },
+                    {
+                        "class": "tycon",
+                        "flavour": "data type",
+                        "type": "Coord2"
+                    },
+                    {
+                        "class": "tycon",
+                        "flavour": "data type",
+                        "type": "InfixProd"
+                    },
+                    {
+                        "class": "tycon",
+                        "flavour": "data type",
+                        "type": "InfixSum"
+                    },
+                    {
+                        "class": "tycon",
+                        "flavour": "data type",
+                        "type": "Logger"
+                    },
+                    {
+                        "class": "tycon",
+                        "flavour": "data type",
+                        "type": "Things"
+                    },
+                    {
+                        "class": "tycon",
+                        "flavour": "data type",
+                        "type": "Union"
+                    }
+                ],
+                "module": "Medley.Types"
+            },
+            {
+                "ids": [
+                    {
                         "class": "id",
                         "name": "wobble",
                         "type": "forall (m :: * -> *). Divisible m => m ()"

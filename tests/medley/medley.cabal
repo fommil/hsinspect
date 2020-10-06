@@ -21,13 +21,16 @@ common deps
     cpp-options: -DUNCOMPILABLE
 
   if flag(ghcflags)
-    ghc-options: -fplugin GhcFlags.Plugin
+    ghc-options:   -fplugin GhcFlags.Plugin
     build-depends: ghcflags
 
 library
   import:          deps
   hs-source-dirs:  library
   build-depends:   contravariant ^>=1.5.2
+
+  -- cabal-fmt: expand library
   exposed-modules:
+    Medley.Types
     Medley.Wibble
     Medley.Wobble

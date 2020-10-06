@@ -1,0 +1,232 @@
+[
+    [
+        {
+            "class": "product",
+            "cons": "Coordy1",
+            "params": [
+                "Double",
+                "Double"
+            ],
+            "type": "Coord1"
+        },
+        {
+            "class": "record",
+            "cons": "Coordy2",
+            "fields": [
+                [
+                    "a",
+                    "Double"
+                ],
+                [
+                    "b",
+                    "Double"
+                ]
+            ],
+            "type": "Coord2"
+        },
+        {
+            "class": "sum",
+            "data": [
+                [
+                    "Wales",
+                    [
+                        "String"
+                    ]
+                ],
+                [
+                    "England",
+                    [
+                        "Int",
+                        "Int"
+                    ]
+                ],
+                [
+                    "Scotland",
+                    null
+                ]
+            ],
+            "type": "Union"
+        },
+        {
+            "class": "product",
+            "cons": "T",
+            "params": [
+                "a",
+                "b",
+                "Double"
+            ],
+            "tparams": [
+                "a",
+                "b"
+            ],
+            "type": "Things"
+        },
+        {
+            "class": "record",
+            "cons": "Logger",
+            "fields": [
+                [
+                    "log",
+                    "String -> m ()"
+                ]
+            ],
+            "tparams": [
+                "m"
+            ],
+            "type": "Logger"
+        },
+        {
+            "class": "sum",
+            "data": [
+                [
+                    "Admin",
+                    [
+                        "[a]",
+                        "String"
+                    ]
+                ],
+                [
+                    "User",
+                    [
+                        "a",
+                        "String"
+                    ]
+                ]
+            ],
+            "tparams": [
+                "a"
+            ],
+            "type": "Action"
+        },
+        {
+            "class": "product",
+            "cons": ":|",
+            "params": [
+                "String",
+                "String"
+            ],
+            "type": "InfixProd"
+        },
+        {
+            "class": "sum",
+            "data": [
+                [
+                    ":||",
+                    [
+                        "String",
+                        "String"
+                    ]
+                ],
+                [
+                    ":|||",
+                    [
+                        "String",
+                        "String"
+                    ]
+                ]
+            ],
+            "type": "InfixSum"
+        }
+    ],
+    [
+        {
+            "end": {
+                "col": 32,
+                "line": 1
+            },
+            "start": {
+                "col": 1,
+                "line": 1
+            },
+            "text": "{-# LANGUAGE KindSignatures #-}"
+        },
+        {
+            "end": {
+                "col": 11,
+                "line": 6
+            },
+            "start": {
+                "col": 1,
+                "line": 6
+            },
+            "text": "-- product"
+        },
+        {
+            "end": {
+                "col": 10,
+                "line": 9
+            },
+            "start": {
+                "col": 1,
+                "line": 9
+            },
+            "text": "-- record"
+        },
+        {
+            "end": {
+                "col": 7,
+                "line": 12
+            },
+            "start": {
+                "col": 1,
+                "line": 12
+            },
+            "text": "-- sum"
+        },
+        {
+            "end": {
+                "col": 23,
+                "line": 15
+            },
+            "start": {
+                "col": 1,
+                "line": 15
+            },
+            "text": "-- polymorphic product"
+        },
+        {
+            "end": {
+                "col": 36,
+                "line": 18
+            },
+            "start": {
+                "col": 1,
+                "line": 18
+            },
+            "text": "-- higher kinded polymorphic record"
+        },
+        {
+            "end": {
+                "col": 19,
+                "line": 21
+            },
+            "start": {
+                "col": 1,
+                "line": 21
+            },
+            "text": "-- polymorphic sum"
+        },
+        {
+            "end": {
+                "col": 17,
+                "line": 24
+            },
+            "start": {
+                "col": 1,
+                "line": 24
+            },
+            "text": "-- infix product"
+        },
+        {
+            "end": {
+                "col": 13,
+                "line": 27
+            },
+            "start": {
+                "col": 1,
+                "line": 27
+            },
+            "text": "-- infix sum"
+        }
+    ]
+]

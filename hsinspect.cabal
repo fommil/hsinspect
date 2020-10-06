@@ -33,7 +33,7 @@ common deps
     , text
     , time
 
-  ghc-options:      -Wall -Werror=missing-home-modules -Werror=orphans
+  ghc-options:      -Wall -Werror=missing-home-modules -Werror=orphans -Wno-name-shadowing
   default-language: Haskell2010
 
   if flag(ghcflags)
@@ -58,6 +58,6 @@ library
     HsInspect.Json
     HsInspect.Packages
     HsInspect.Sexp
-    HsInspect.TypeParser
+    HsInspect.Types
     HsInspect.Util
     HsInspect.Workarounds

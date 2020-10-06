@@ -20,4 +20,5 @@ sexpToJson (toList -> Just as) = JSArray <$> traverse sexpToJson as
 sexpToJson (SexpCons _ _) = Left $ "cons cell has no JSON equivalent"
 sexpToJson (SexpString s) = Right . JSString $ T.unpack s
 sexpToJson (SexpSymbol s) = Right . JSString $ T.unpack s -- nobody said it had to roundtrip
+sexpToJson (SexpInt i) = Right $ JSInt i
 -- TODO write our own JSON repr to avoid a ghc dep and improve perf
