@@ -15,8 +15,8 @@ import Control.Monad.IO.Class
 import Control.Monad.STM
 import qualified Data.Cache as C
 import Data.Default
-import qualified Data.Text as T
 import qualified Data.List as L
+import qualified Data.Text as T
 import Data.Typeable (typeOf)
 import HsInspect.LSP.Impl
 import qualified Language.Haskell.LSP.Control as CTRL
@@ -187,9 +187,9 @@ reactor lf inp = do
         let (J.DidOpenTextDocumentParams (J.TextDocumentItem uri _ _ _)) = params
             Just file = J.uriToFilePath uri
         populated <- runExceptT $ do
-          ctx <- cachedContext caches file
-          void $ cachedImports caches ctx file
-          void $ cachedIndex caches ctx
+          (bin, ctx) <- cachedContext caches file
+          void $ cachedImports caches bin ctx file
+          void $ cachedIndex caches bin ctx
         case populated of
           Right _ -> pure ()
           Left err ->

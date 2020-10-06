@@ -21,11 +21,13 @@ import Debug.Trace
 import qualified FastString as GHC
 import qualified GHC as GHC
 import GHC.Paths (libdir)
-import HsInspect.LSP.Context
+import HsInspect.Context
 import HsInspect.LSP.HsInspect
 import qualified Lexer as GHC
 import qualified SrcLoc as GHC
 import qualified StringBuffer as GHC
+import System.Directory (findExecutablesInDirectories)
+import System.FilePath (splitSearchPath)
 import System.FilePath (takeDirectory)
 
 -- TODO consider invalidation strategies, e.g. Import could use the file's
@@ -34,28 +36,41 @@ import System.FilePath (takeDirectory)
 --      the current package. But beware that often it is better to have a stale
 --      cache and respond with *something* than to be slow and redo the work.
 data Caches = Caches
-  (Cache FilePath Context) -- ^ by source root
+  (Cache FilePath (HsInspectBin, Context)) -- ^ by source root
   (Cache FilePath [Import]) -- ^ by source filename
   (Cache FilePath [Package]) -- ^ by source root
 
 -- TODO the index could use a data structure that is faster to search
 
-cachedContext :: Caches -> FilePath -> ExceptT String IO Context
+discoverHsInspect :: Text -> ExceptT String IO HsInspectBin
+discoverHsInspect path = do
+  let dirs = splitSearchPath $ T.unpack path
+  found <- liftIO $ findExecutablesInDirectories dirs "hsinspect"
+  case found of
+    [] -> throwE help_hsinspect
+    exe : _ -> pure $ HsInspectBin exe
+
+help_hsinspect :: String
+help_hsinspect = "The hsinspect binary has not been installed for this package. \
+                 \See https://gitlab.com/tseenshe/hsinspect#installation for more details."
+
+cachedContext :: Caches -> FilePath -> ExceptT String IO (HsInspectBin, Context)
 cachedContext (Caches cache _ _) file = do
   key <- takeDirectory <$> discoverGhcflags file
   let work = do
         ctx <- findContext file
-        liftIO $ C.insert cache key ctx
-        pure ctx
+        bin <- discoverHsInspect $ ghcpath ctx
+        liftIO $ C.insert cache key (bin, ctx)
+        pure (bin, ctx)
   fromMaybeM work . liftIO $ C.lookup cache key
 
-cachedImports :: Caches -> Context -> FilePath -> ExceptT String IO [Import]
-cachedImports (Caches _ cache _) ctx file =
-  C.fetchWithCache cache file $ hsinspect_imports ctx
+cachedImports :: Caches -> HsInspectBin -> Context -> FilePath -> ExceptT String IO [Import]
+cachedImports (Caches _ cache _) bin ctx file =
+  C.fetchWithCache cache file $ hsinspect_imports bin ctx
 
-cachedIndex :: Caches -> Context -> ExceptT String IO [Package]
-cachedIndex (Caches _ _ cache) ctx =
-  C.fetchWithCache cache (srcdir ctx) $ \_ -> hsinspect_index ctx
+cachedIndex :: Caches -> HsInspectBin -> Context -> ExceptT String IO [Package]
+cachedIndex (Caches _ _ cache) bin ctx =
+  C.fetchWithCache cache (srcdir ctx) $ \_ -> hsinspect_index bin ctx
 
 -- only lookup the index, don't try to populate it
 cachedIndex' :: Caches -> Context -> ExceptT String IO [Package]
@@ -116,8 +131,8 @@ findNameAndTypes qual pkgs = do
 
 hoverProvider :: Caches -> FilePath -> (Int, Int) -> ExceptT String IO (Maybe (Span, Text))
 hoverProvider caches file position = do
-  ctx <- cachedContext caches file
-  symbols <- cachedImports caches ctx file
+  (bin, ctx) <- cachedContext caches file
+  symbols <- cachedImports caches bin ctx file
   index <- cachedIndex' caches ctx
   found <- symbolAtPoint file position
   pure $ case traceShow found found of
@@ -133,8 +148,8 @@ hoverProvider caches file position = do
 -- TODO use the index to add optional type information
 completionProvider :: Caches -> FilePath -> Text -> (Int, Int) -> ExceptT String IO [(Text, Maybe Text)]
 completionProvider caches file contents position = do
-  ctx <- cachedContext caches file
-  symbols <- cachedImports caches ctx file
+  (bin, ctx) <- cachedContext caches file
+  symbols <- cachedImports caches bin ctx file
   index <- cachedIndex' caches ctx
   found <- symbolAtVirtualPoint file contents position
   pure $ case traceShow (found, symbols) found of

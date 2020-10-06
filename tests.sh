@@ -34,7 +34,7 @@ for t in * ; do
     for f in $(find library -name "*.hs") ; do
         echo "TEST $f"
         $HSINSPECT imports "$f" -- $GHC_FLAGS > "$f.$GHC_VERSION.imports.sexp"
-        $HSINSPECT imports "$f" --json -- $GHC_FLAGS | python3 -m json.tool --sort-keys > "$f.$GHC_VERSION.imports.json"
+        $HSINSPECT imports "$f" --json --ghcflags | python3 -m json.tool --sort-keys > "$f.$GHC_VERSION.imports.json"
     done
     $HSINSPECT index --json -- $GHC_FLAGS | sed "s|${HOME}[^\"]*\"|REDACTED\"|g" | sed "s|\"/opt/ghc/[^\"]*\"|\"REDACTED\"|g" | sed "s|\"/builds/[^\"]*\"|\"REDACTED\"|g" | python3 -m json.tool --sort-keys > "library/$GHC_VERSION.index.json"
     # to generate haskell-tng test data
@@ -42,7 +42,7 @@ for t in * ; do
 
     for f in "library/Medley/Types.hs" ; do
         $HSINSPECT types "$f" -- $GHC_FLAGS > "$f.$GHC_VERSION.types.sexp"
-        $HSINSPECT types "$f" --json -- $GHC_FLAGS | python3 -m json.tool --sort-keys > "$f.$GHC_VERSION.types.json"
+        $HSINSPECT types "$f" --json --ghcflags | python3 -m json.tool --sort-keys > "$f.$GHC_VERSION.types.json"
     done
 
     # the package command requires all files to be compilable

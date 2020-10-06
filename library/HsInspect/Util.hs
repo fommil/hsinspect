@@ -45,6 +45,12 @@ locateDominating p dir = do
        then pure Nothing
        else locateDominating p parent
 
+-- the first parent directory where a file or directory name matches the predicate
+locateDominatingDir :: (String -> Bool) -> FilePath -> IO (Maybe FilePath)
+locateDominatingDir p dir = do
+  file' <- locateDominating p dir
+  pure $ takeDirectory <$> file'
+
 walkSuffix :: String -> FilePath -> IO [FilePath]
 walkSuffix suffix dir = filter (suffix `isSuffixOf`) <$> walk dir
 

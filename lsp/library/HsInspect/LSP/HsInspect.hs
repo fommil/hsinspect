@@ -18,21 +18,24 @@ import Data.Aeson
 import qualified Data.ByteString.Char8 as C
 import Data.Char (toLower)
 import Data.Text (Text)
+import qualified Data.Text as T
 import GHC.Generics
-import HsInspect.LSP.Context
+import HsInspect.Context
 import HsInspect.LSP.Util
 import qualified System.Log.Logger as L
 
-hsinspect_imports :: Context -> FilePath -> ExceptT String IO [Import]
-hsinspect_imports ctx hs = hsinspect_raw ctx ["imports", hs]
+newtype HsInspectBin = HsInspectBin FilePath
 
-hsinspect_index :: Context -> ExceptT String IO [Package]
-hsinspect_index ctx = hsinspect_raw ctx ["index"]
+hsinspect_imports :: HsInspectBin -> Context -> FilePath -> ExceptT String IO [Import]
+hsinspect_imports hsinspect ctx hs = hsinspect_raw hsinspect ctx ["imports", hs]
 
-hsinspect_raw :: FromJSON a => Context -> [String] -> ExceptT String IO a
-hsinspect_raw Context{hsinspect, package_dir, ghcflags, ghcpath} args = do
+hsinspect_index :: HsInspectBin -> Context -> ExceptT String IO [Package]
+hsinspect_index hsinspect ctx = hsinspect_raw hsinspect ctx ["index"]
+
+hsinspect_raw :: FromJSON a => HsInspectBin -> Context -> [String] -> ExceptT String IO a
+hsinspect_raw (HsInspectBin hsinspect) Context{package_dir, ghcflags, ghcpath} args = do
   liftIO $ L.debugM "haskell-lsp" $ "hsinspect-lsp:cwd:" <> package_dir
-  stdout <- shell hsinspect (args <> ["--json", "--"] <> ghcflags) (Just package_dir) (Just ghcpath) [("GHC_ENVIRONMENT", "-")]
+  stdout <- shell hsinspect (args <> ["--json", "--"] <> (T.unpack <$> ghcflags)) (Just package_dir) (Just $ T.unpack ghcpath) [("GHC_ENVIRONMENT", "-")]
   ExceptT . pure . eitherDecodeStrict' $ C.pack stdout
 
 data Import = Import

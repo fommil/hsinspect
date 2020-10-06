@@ -24,7 +24,7 @@ flag ghcflags
 
 common deps
   build-depends:
-    , base        >=4.11 && <5
+    , base          >=4.11 && <5
     , containers
     , directory
     , filepath
@@ -32,8 +32,12 @@ common deps
     , ghc-boot
     , text
     , time
+    , transformers
 
-  ghc-options:      -Wall -Werror=missing-home-modules -Werror=orphans -Wno-name-shadowing
+  ghc-options:
+    -Wall -Werror=missing-home-modules -Werror=orphans
+    -Wno-name-shadowing
+
   default-language: Haskell2010
 
   if flag(ghcflags)
@@ -53,10 +57,12 @@ library
 
   -- cabal-fmt: expand library
   exposed-modules:
+    HsInspect.Context
     HsInspect.Imports
     HsInspect.Index
     HsInspect.Json
     HsInspect.Packages
+    HsInspect.Runner
     HsInspect.Sexp
     HsInspect.Types
     HsInspect.Util
