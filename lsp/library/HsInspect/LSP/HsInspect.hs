@@ -84,7 +84,7 @@ jsonConventions = defaultOptions
   , omitNothingFields = True
   }
 
--- TODO DerivingVia this boilerplate away
+-- TODO create boilerplate rules for this (no fancy type shit!)
 instance FromJSON Import where
   parseJSON = genericParseJSON jsonConventions
 
