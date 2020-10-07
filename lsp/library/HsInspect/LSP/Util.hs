@@ -6,7 +6,6 @@ import Control.Monad.Trans.Except (ExceptT(..))
 import Data.List (intercalate)
 import System.Environment (getEnvironment)
 import System.Exit (ExitCode(..))
-import System.FilePath
 import qualified System.Log.Logger as L
 import qualified System.Process as P
 

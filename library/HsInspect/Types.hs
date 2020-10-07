@@ -55,8 +55,6 @@ instance ToSexp Comment where
   toSexp (Comment p_1_1 p_1_2 p_1_3) = alist [("text", toSexp p_1_1), ("start", toSexp p_1_2), ("end", toSexp p_1_3)]
 {- BOILERPLATE END -}
 
--- FIXME add a Bool to each field to indicate if it is polymorphic
-
 types :: GHC.GhcMonad m => FilePath -> m ([Type], [Comment])
 types file = do
   dflags <- GHC.getSessionDynFlags
@@ -79,6 +77,7 @@ parseTypes env file = do
             let
               tycon = showGhc tycon'
               tparams = renderTparam <$> tparams'
+              -- FIXME GHC.Rename.HsType.extractHsTyRdrTyVars
               renderField :: GHC.GenLocated l (GHC.ConDeclField GHC.GhcPs) -> (Text, Text)
               renderField (GHC.L _ field) = (showGhc . head $ GHC.cd_fld_names field, showGhc $ GHC.cd_fld_type field)
               renderArg :: GHC.LBangType GHC.GhcPs -> Text
