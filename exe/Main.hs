@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ViewPatterns #-}
 
 module Main where
@@ -6,6 +7,7 @@ module Main where
 import qualified Config as GHC
 import Control.Monad
 import Control.Monad.IO.Class
+import Control.Monad.Trans.Except (runExceptT)
 import qualified Data.Text.IO as T
 import DynFlags (unsafeGlobalDynFlags)
 import HsInspect.Imports
@@ -48,8 +50,11 @@ main = do
   when (elem "--ghc-version" args) $
     (putStrLn GHC.cProjectVersion) >> exitWith ExitSuccess
 
+  let ghcflags_flags' w = runExceptT (ghcflags_flags w) >>= \case
+        Left err -> (putStrLn err) >> exitWith (ExitFailure 1)
+        Right flags -> pure flags
   flags <- if (elem "--ghcflags" args)
-           then ghcflags_flags $ case args of
+           then ghcflags_flags' $ case args of
              "imports" : file : _ -> Just file
              "types" : file : _ -> Just file
              _ -> Nothing

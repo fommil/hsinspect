@@ -5,7 +5,7 @@ module HsInspect.Runner (runGhcAndJamMasterShe, ghcflags_flags) where
 
 import Control.Monad
 import Control.Monad.IO.Class
-import Control.Monad.Trans.Except (runExceptT)
+import Control.Monad.Trans.Except (ExceptT(..))
 import Data.List (find, isPrefixOf)
 import qualified Data.List as L
 import Data.Maybe (catMaybes)
@@ -47,16 +47,14 @@ runGhcAndJamMasterShe (filterFlags -> flags) work =
   work
 
 -- gets the flags (and sets the environment) from the output of the ghcflags plugin
-ghcflags_flags :: Maybe FilePath -> IO [String]
+ghcflags_flags :: Maybe FilePath -> ExceptT String IO [String]
 ghcflags_flags mf = do
-  from <- maybe getCurrentDirectory pure mf
-  ctx <- runExceptT $ findContext from
-  case ctx of
-    Left err -> error err
-    Right Context{package_dir, ghcflags, ghcpath} -> do
-      setCurrentDirectory package_dir
-      setEnv "PATH" (T.unpack ghcpath)
-      pure $ T.unpack <$> ghcflags
+  from <- liftIO $ maybe getCurrentDirectory pure mf
+  Context{package_dir, ghcflags, ghcpath} <- findContext from
+  liftIO $ do
+    setCurrentDirectory package_dir
+    setEnv "PATH" (T.unpack ghcpath)
+  pure $ T.unpack <$> ghcflags
 
 inferHomeModules :: GHC.GhcMonad m => m [GHC.ModuleName]
 inferHomeModules = do
