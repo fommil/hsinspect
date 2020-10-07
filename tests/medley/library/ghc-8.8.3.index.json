@@ -26,6 +26,11 @@
                     },
                     {
                         "class": "con",
+                        "name": "C",
+                        "type": "Int -> Coord"
+                    },
+                    {
+                        "class": "con",
                         "name": "Coordy1",
                         "type": "Double -> Double -> Coord1"
                     },
@@ -68,6 +73,11 @@
                         "class": "tycon",
                         "flavour": "data type",
                         "type": "Action"
+                    },
+                    {
+                        "class": "tycon",
+                        "flavour": "newtype",
+                        "type": "Coord"
                     },
                     {
                         "class": "tycon",

@@ -20,14 +20,13 @@ import qualified Outputable as GHC
 import qualified Parser
 import qualified RnTypes as GHC
 
--- FIXME add NewType
-data Type = ProductType Text [Text] Text [(Text, [Text])]  -- ^^ type tparams cons [(param types, [typarams])]
-          | RecordType Text [Text] Text [(Text, Text, [Text])] -- ^^ type tparams cons [(fieldname, param type, [typarams])]
+data Type = ProductType Text [Text] Bool Text [(Text, [Text])]  -- ^^ type tparams newtype cons [(param types, [typarams])]
+          | RecordType Text [Text] Bool Text [(Text, Text, [Text])] -- ^^ type tparams newtype cons [(fieldname, param type, [typarams])]
           | SumType Text [Text] [(Text, [(Text, [Text])])] -- ^^ type tparams [(cons, [param types, [typarams]])] (no records)
   deriving (Eq, Show)
 {- BOILERPLATE Type ToSexp
-   field={ProductType:[type,tparams,cons,params],
-          RecordType:[type,tparams,cons,fields],
+   field={ProductType:[type,tparams,newtype,cons,params],
+          RecordType:[type,tparams,newtype,cons,fields],
           SumType:[type,tparams,data]}
    class={ProductType:product,
           RecordType:record,
@@ -35,8 +34,8 @@ data Type = ProductType Text [Text] Text [(Text, [Text])]  -- ^^ type tparams co
 -}
 {- BOILERPLATE START -}
 instance ToSexp Type where
-  toSexp (ProductType p_1_1 p_1_2 p_1_3 p_1_4) = alist $ ("class", "product") : [("type", toSexp p_1_1), ("tparams", toSexp p_1_2), ("cons", toSexp p_1_3), ("params", toSexp p_1_4)]
-  toSexp (RecordType p_1_1 p_1_2 p_1_3 p_1_4) = alist $ ("class", "record") : [("type", toSexp p_1_1), ("tparams", toSexp p_1_2), ("cons", toSexp p_1_3), ("fields", toSexp p_1_4)]
+  toSexp (ProductType p_1_1 p_1_2 p_1_3 p_1_4 p_1_5) = alist $ ("class", "product") : [("type", toSexp p_1_1), ("tparams", toSexp p_1_2), ("newtype", toSexp p_1_3), ("cons", toSexp p_1_4), ("params", toSexp p_1_5)]
+  toSexp (RecordType p_1_1 p_1_2 p_1_3 p_1_4 p_1_5) = alist $ ("class", "record") : [("type", toSexp p_1_1), ("tparams", toSexp p_1_2), ("newtype", toSexp p_1_3), ("cons", toSexp p_1_4), ("fields", toSexp p_1_5)]
   toSexp (SumType p_1_1 p_1_2 p_1_3) = alist $ ("class", "sum") : [("type", toSexp p_1_1), ("tparams", toSexp p_1_2), ("data", toSexp p_1_3)]
 {- BOILERPLATE END -}
 
@@ -79,6 +78,9 @@ parseTypes env file = do
             let
               tycon = showGhc tycon'
               tparams = renderTparam <$> tparams'
+              nt = case GHC.dd_ND ddn of
+                GHC.NewType -> True
+                GHC.DataType -> False
               renderTyParams :: GHC.LHsType GHC.GhcPs -> [Text]
               renderTyParams tpe = showGhc <$> (GHC.freeKiTyVarsTypeVars $ GHC.extractHsTyRdrTyVars tpe)
               renderField :: GHC.GenLocated l (GHC.ConDeclField GHC.GhcPs) -> (Text, Text, [Text]) -- (name, type, [typarams])
@@ -99,8 +101,8 @@ parseTypes env file = do
 
              in case rhs of
               [] -> Nothing
-              [(cons, Right tpes)] -> Just $ ProductType tycon tparams cons tpes
-              [(cons, Left fields)] -> Just $ RecordType tycon tparams cons fields
+              [(cons, Right tpes)] -> Just $ ProductType tycon tparams nt cons tpes
+              [(cons, Left fields)] -> Just $ RecordType tycon tparams nt cons fields
               mult -> Just . SumType tycon tparams $ render <$> mult
                 where
                   render (cons, Right args) = (cons, args)

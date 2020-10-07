@@ -12,6 +12,9 @@ data Coord2 = Coordy2 { a :: Double, b :: Double}
 -- sum
 data Union = Wales String | England Int Int | Scotland
 
+-- newtype
+newtype Coord = C { foo :: Int }
+
 -- polymorphic product
 data Things a b = T a b Double
 
