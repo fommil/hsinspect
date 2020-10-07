@@ -22,8 +22,8 @@ import System.Environment (setEnv)
 
 -- expects the PWD to be the same as the .cabal file and the PATH to be what the
 -- build tool sees.
-runGhcAndJamMasterShe :: [String] -> Ghc a -> IO a
-runGhcAndJamMasterShe (filterFlags -> flags) work =
+runGhcAndJamMasterShe :: [String] -> Bool -> Ghc a -> IO a
+runGhcAndJamMasterShe (filterFlags -> flags) setTargets work =
   let libdir = (drop 2) <$> find ("-B" `isPrefixOf`) flags
       flags' = filter (not . ("-B" `isPrefixOf`)) flags
    in GHC.runGhc libdir $ do
@@ -38,12 +38,14 @@ runGhcAndJamMasterShe (filterFlags -> flags) work =
          , GHC.fatalWarningFlags = EnumSet.empty
          }
 
-  -- The caller may have provided a list of home modules, but we do not trust
-  -- them because the ghcflags plugin does not keep the flags up to date for
-  -- incremental compiles.
-  let mkTarget m = GHC.Target (GHC.TargetModule m) True Nothing
-  homeModules <- inferHomeModules
-  GHC.setTargets $ mkTarget <$> homeModules
+  when setTargets $ do
+    -- The caller may have provided a list of home modules, but we do not trust
+    -- them because the ghcflags plugin does not keep the flags up to date for
+    -- incremental compiles.
+    let mkTarget m = GHC.Target (GHC.TargetModule m) True Nothing
+    homeModules <- inferHomeModules
+    GHC.setTargets $ mkTarget <$> homeModules
+
   work
 
 -- gets the flags (and sets the environment) from the output of the ghcflags plugin

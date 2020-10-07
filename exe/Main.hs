@@ -67,7 +67,7 @@ main = do
           Right j -> putStrLn $ encodeJson unsafeGlobalDynFlags j
         else T.putStrLn $ S.render a
 
-  runGhcAndJamMasterShe flags $ case args of
+  runGhcAndJamMasterShe flags True $ case args of
     "imports" : file : rest -> do
       quals <- imports file
       respond rest quals
