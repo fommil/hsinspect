@@ -62,6 +62,9 @@ instance ToSexp a => ToSexp [a] where
 instance (ToSexp a1, ToSexp a2) => ToSexp (a1, a2) where
   toSexp (a1, a2) = list [toSexp a1, toSexp a2]
 
+instance (ToSexp a1, ToSexp a2, ToSexp a3) => ToSexp (a1, a2, a3) where
+  toSexp (a1, a2, a3) = list [toSexp a1, toSexp a2, toSexp a3]
+
 instance ToSexp a => ToSexp (Maybe a) where
   toSexp (Just a) = toSexp a
   toSexp Nothing = SexpNil

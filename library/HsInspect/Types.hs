@@ -18,10 +18,12 @@ import HsInspect.Workarounds (mkCppState)
 import qualified Lexer as GHC
 import qualified Outputable as GHC
 import qualified Parser
+import qualified RnTypes as GHC
 
-data Type = ProductType Text [Text] Text [Text]  -- ^^ type tparams cons [param types]
-          | RecordType Text [Text] Text [(Text, Text)] -- ^^ type tparams cons [(fieldname, param type)]
-          | SumType Text [Text] [(Text, [Text])] -- ^^ type tparams [(cons, param types)] (no records)
+-- FIXME add NewType
+data Type = ProductType Text [Text] Text [(Text, [Text])]  -- ^^ type tparams cons [(param types, [typarams])]
+          | RecordType Text [Text] Text [(Text, Text, [Text])] -- ^^ type tparams cons [(fieldname, param type, [typarams])]
+          | SumType Text [Text] [(Text, [(Text, [Text])])] -- ^^ type tparams [(cons, [param types, [typarams]])] (no records)
   deriving (Eq, Show)
 {- BOILERPLATE Type ToSexp
    field={ProductType:[type,tparams,cons,params],
@@ -77,16 +79,21 @@ parseTypes env file = do
             let
               tycon = showGhc tycon'
               tparams = renderTparam <$> tparams'
-              -- FIXME GHC.Rename.HsType.extractHsTyRdrTyVars
-              renderField :: GHC.GenLocated l (GHC.ConDeclField GHC.GhcPs) -> (Text, Text)
-              renderField (GHC.L _ field) = (showGhc . head $ GHC.cd_fld_names field, showGhc $ GHC.cd_fld_type field)
-              renderArg :: GHC.LBangType GHC.GhcPs -> Text
-              renderArg (GHC.L _ arg) = showGhc arg
+              renderTyParams :: GHC.LHsType GHC.GhcPs -> [Text]
+              renderTyParams tpe = showGhc <$> (GHC.freeKiTyVarsTypeVars $ GHC.extractHsTyRdrTyVars tpe)
+              renderField :: GHC.GenLocated l (GHC.ConDeclField GHC.GhcPs) -> (Text, Text, [Text]) -- (name, type, [typarams])
+              renderField (GHC.L _ field) =
+                let tpe = GHC.cd_fld_type field
+                 in (showGhc . head $ GHC.cd_fld_names field, showGhc tpe, renderTyParams tpe)
+              renderArg :: GHC.LBangType GHC.GhcPs -> (Text, [Text]) -- (type, typarams)
+              renderArg t@(GHC.L _ arg) = (showGhc arg, renderTyParams t)
+              -- rhs is (cons, [(field name, field type, [typarams])] | [(parameter type, [typarams])])
               rhs = do
                 (GHC.L _ ddl) <- GHC.dd_cons ddn
                 case ddl of
+                  -- http://hackage.haskell.org/package/ghc-8.8.3/docs/HsDecls.html#t:ConDecl
                   GHC.ConDeclH98 _ cons _ _ _ (GHC.RecCon (GHC.L _ fields)) _ -> [(showGhc cons, Left $ renderField <$> fields)]
-                  GHC.ConDeclH98 _ cons _ _ _ (GHC.InfixCon a1 a2) _ -> [(showGhc cons, Right $ [renderArg a1, renderArg a2])]
+                  GHC.ConDeclH98 _ cons _ _ _ (GHC.InfixCon a1 a2) _ -> [(showGhc cons, Right $ renderArg <$> [a1, a2])]
                   GHC.ConDeclH98 _ cons _ _ _ (GHC.PrefixCon args) _ -> [(showGhc cons, Right $ renderArg <$> args)]
                   _ -> [] -- GADTS
 
@@ -97,7 +104,7 @@ parseTypes env file = do
               mult -> Just . SumType tycon tparams $ render <$> mult
                 where
                   render (cons, Right args) = (cons, args)
-                  render (cons, Left fargs) = (cons, snd <$> fargs)
+                  render (cons, Left fargs) = (cons, (\(_, tpes, typs) -> (tpes, typs)) <$> fargs)
 
           findType _ = Nothing
 
