@@ -74,9 +74,11 @@ parseTypes env file = do
       -- http://hackage.haskell.org/package/ghc-8.8.3/docs/HsDecls.html#t:HsDecl
       -- [Located (HsDecl p)]
       let decls = GHC.hsmodDecls hsmod
-          findType (GHC.L _ (GHC.TyClD _ (GHC.DataDecl _ tycon' (GHC.HsQTvs _ tparams') _ ddn))) =
+          findType (GHC.L _ (GHC.TyClD _ (GHC.DataDecl _ tycon' (GHC.HsQTvs _ tparams') fixity ddn))) =
             let
-              tycon = showGhc tycon'
+              tycon = case fixity of
+                GHC.Prefix -> showGhc tycon'
+                GHC.Infix -> "(" <> showGhc tycon' <> ")"
               tparams = renderTparam <$> tparams'
               nt = case GHC.dd_ND ddn of
                 GHC.NewType -> True
@@ -95,7 +97,7 @@ parseTypes env file = do
                 case ddl of
                   -- http://hackage.haskell.org/package/ghc-8.8.3/docs/HsDecls.html#t:ConDecl
                   GHC.ConDeclH98 _ cons _ _ _ (GHC.RecCon (GHC.L _ fields)) _ -> [(showGhc cons, Left $ renderField <$> fields)]
-                  GHC.ConDeclH98 _ cons _ _ _ (GHC.InfixCon a1 a2) _ -> [(showGhc cons, Right $ renderArg <$> [a1, a2])]
+                  GHC.ConDeclH98 _ cons _ _ _ (GHC.InfixCon a1 a2) _ -> [("(" <> showGhc cons <> ")", Right $ renderArg <$> [a1, a2])]
                   GHC.ConDeclH98 _ cons _ _ _ (GHC.PrefixCon args) _ -> [(showGhc cons, Right $ renderArg <$> args)]
                   _ -> [] -- GADTS
 
