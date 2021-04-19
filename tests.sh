@@ -7,7 +7,7 @@ cd "$SCRIPT_DIR"
 
 # use cabal v2-configure to change ghc version
 
-cabal v2-build --constraint="medley -uncompilable" all
+cabal v2-build --constraint="medley -uncompilable" exe:hsinspect medley
 
 HSINSPECT=$(cabal v2-exec -v0 which -- hsinspect)
 GHC_VERSION=ghc-$(cabal v2-exec -v0 ghc -- --numeric-version)
@@ -62,5 +62,5 @@ fi
 $HSINSPECT --help
 $HSINSPECT --version
 
-cd lsp
-cabal v2-run test
+#cd lsp
+#cabal v2-run test

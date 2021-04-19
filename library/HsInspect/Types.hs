@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -19,6 +20,9 @@ import qualified Lexer as GHC
 import qualified Outputable as GHC
 import qualified Parser
 import qualified RnTypes as GHC
+#if __GLASGOW_HASKELL__ >= 810
+import qualified ErrUtils as GHC
+#endif
 
 data Type = ProductType Text [Text] Bool Text [(Text, [Text])]  -- ^^ type tparams newtype cons [(param types, [typarams])]
           | RecordType Text [Text] Bool Text [(Text, Text, [Text])] -- ^^ type tparams newtype cons [(fieldname, param type, [typarams])]
@@ -84,7 +88,12 @@ parseTypes env file = do
                 GHC.NewType -> True
                 GHC.DataType -> False
               renderTyParams :: GHC.LHsType GHC.GhcPs -> [Text]
-              renderTyParams tpe = showGhc <$> (GHC.freeKiTyVarsTypeVars $ GHC.extractHsTyRdrTyVars tpe)
+              renderTyParams tpe = showGhc <$>
+#if __GLASGOW_HASKELL__ >= 810
+                GHC.extractHsTyRdrTyVars tpe
+#else
+                (GHC.freeKiTyVarsTypeVars $ GHC.extractHsTyRdrTyVars tpe)
+#endif
               renderField :: GHC.GenLocated l (GHC.ConDeclField GHC.GhcPs) -> (Text, Text, [Text]) -- (name, type, [typarams])
               renderField (GHC.L _ field) =
                 let tpe = GHC.cd_fld_type field
@@ -131,4 +140,13 @@ parseTypes env file = do
 
       pure (types, sortOn (\(Comment _ s _) -> s) comments)
 
+#if __GLASGOW_HASKELL__ >= 810
+    GHC.PFailed st ->
+      let errs = GHC.interppSP
+            . GHC.pprErrMsgBagWithLoc
+            . GHC.getErrorMessages st
+            $ GHC.unsafeGlobalDynFlags
+      in throwIO . userError $ "unable to parse " <> file <> " due to " <> GHC.showSDocUnsafe errs
+#else
     GHC.PFailed _ _ err -> throwIO . userError $ "unable to parse " <> file <> " due to " <> GHC.showSDocUnsafe err
+#endif
