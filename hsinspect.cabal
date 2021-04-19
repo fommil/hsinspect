@@ -1,6 +1,6 @@
 cabal-version: 2.2
 name:          hsinspect
-version:       0.0.18
+version:       0.0.19
 synopsis:      Inspect Haskell source files.
 license:       GPL-3.0-or-later
 license-file:  LICENSE
