@@ -44,11 +44,6 @@ for t in * ; do
         $HSINSPECT types "$f" -- $GHC_FLAGS > "$f.$GHC_VERSION.types.sexp"
         $HSINSPECT types "$f" --json --ghcflags | python3 -m json.tool --sort-keys > "$f.$GHC_VERSION.types.json"
     done
-
-    # the package command requires all files to be compilable
-    cabal v2-build --constraint="medley -uncompilable"
-    GHC_FLAGS=$(cat library/.ghc.flags)
-    $HSINSPECT packages --json -- $GHC_FLAGS | python3 -m json.tool --sort-keys > "library/$GHC_VERSION.packages.json"
 done
 
 cd "$SCRIPT_DIR"

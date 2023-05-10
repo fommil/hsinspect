@@ -9,7 +9,6 @@ Provides a very lightweight (zero dependency) command line interface over the [`
 - [x] obtain ghc flags
 - [x] list imported symbols in scope
 - [x] list packages, modules, names and types
-- [x] list used and unused packages (`-Wunused-packages` before ghc-8.10)
 - [x] list the AST of the data types in a file
 
 ## Contributing

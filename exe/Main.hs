@@ -13,7 +13,6 @@ import DynFlags (unsafeGlobalDynFlags)
 import HsInspect.Imports
 import HsInspect.Index
 import HsInspect.Json
-import HsInspect.Packages
 import HsInspect.Runner
 import HsInspect.Sexp as S
 import HsInspect.Types
@@ -35,7 +34,6 @@ help =
   "                             along with their locally qualified (and\n" ++
   "                             unqualified) names.\n" ++
   "  index                    - list all dependency packages, modules, terms and types.\n" ++
-  "  packages /path/to/dir    - list all packages that are referenced by sources in this dir.\n\n" ++
   " If --ghcflags is used, the flags and path will be automatically inferred from\n" ++
   " .ghc.flags and .ghc.path files based on the file and current directory. Otherwise the\n" ++
   " PATH, PWD and ghcflags must be provided."
@@ -73,9 +71,6 @@ main = do
       respond rest quals
     "index" : rest -> do
       hits <- index
-      respond rest hits
-    "packages" : rest -> do
-      hits <- packages
       respond rest hits
     "types" : file : rest -> do
       hits <- types file

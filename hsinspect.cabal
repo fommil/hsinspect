@@ -61,7 +61,6 @@ library
     HsInspect.Imports
     HsInspect.Index
     HsInspect.Json
-    HsInspect.Packages
     HsInspect.Runner
     HsInspect.Sexp
     HsInspect.Types
