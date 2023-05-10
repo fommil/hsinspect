@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
@@ -9,9 +10,6 @@ module HsInspect.Index
   )
 where
 
-import Avail (AvailInfo(..))
-import BinIface (CheckHiWay(..), TraceBinIFaceReading(..), readBinIface)
-import qualified ConLike as GHC
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.List (isInfixOf, sort)
@@ -20,28 +18,58 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as T
-import qualified DataCon as GHC
-import qualified DynFlags as GHC
 import qualified GHC
-import GHC.PackageDb
-import qualified GHC.PackageDb as GHC
+
 import HsInspect.Json ()
 import HsInspect.Sexp
 import HsInspect.Util
+
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import qualified GHC.Core.ConLike as GHC
+import qualified GHC.Core.PatSyn as GHC
+import qualified GHC.Core.TyCon as GHC
+import qualified GHC.Data.FastString as GHC
+import qualified GHC.Data.ShortText as GHC
+import qualified GHC.Driver.Env.Types as GHC
+import qualified GHC.Driver.Ppr as GHC
+import qualified GHC.Iface.Binary as GHC
+import qualified GHC.Tc.Types as GHC
+import qualified GHC.Tc.Utils.Env as GHC
+import qualified GHC.Tc.Utils.Monad as GHC
+import qualified GHC.Types.Avail as GHC
+import qualified GHC.Types.Id as GHC
+import qualified GHC.Types.Name as GHC
+import qualified GHC.Unit.Database as GHC
+import qualified GHC.Unit.Env as GHC
+import qualified GHC.Unit.State as GHC
+import qualified GHC.Unit.Types as GHC
+import qualified GHC.Utils.Outputable as GHC
+#else
+import qualified Avail as GHC
+import qualified BinIface as GHC
+import qualified ConLike as GHC
+import qualified DynFlags as GHC
+import qualified FastString as GHC
+import qualified GHC.PackageDb as GHC
 import qualified Id as GHC
-import Module as GHC
+import qualified Module as GHC
 import qualified Name as GHC
-import Outputable (showPpr, showSDoc)
 import qualified Outputable as GHC
-import PackageConfig
 import qualified PackageConfig as GHC
-import Packages (explicitPackages, lookupPackage)
---import System.IO (hPutStrLn, stderr)
+import qualified Packages as GHC
 import qualified PatSyn as GHC
-import TcEnv (tcLookup)
-import TcRnMonad (initTcInteractive)
-import qualified TcRnTypes as GHC
+import qualified TcEnv as GHC
+import qualified TcRnMonad as GHC
 import qualified TyCon as GHC
+#endif
+
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+type SourcePackageId = GHC.PackageId
+type UnitState = GHC.UnitState
+#else
+type SourcePackageId = GHC.SourcePackageId
+type UnitState = GHC.DynFlags
+#endif
 
 -- TODO export unexposed modules too, since they could be exposed by an export elsewhere
 --
@@ -50,12 +78,23 @@ index :: GHC.GhcMonad m => m [PackageEntries]
 index = do
   dflags <- GHC.getSessionDynFlags
 
-  let explicit = explicitPackages $ GHC.pkgState dflags
-      pkgcfgs = maybeToList . lookupPackage dflags =<< explicit
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+  sess <- GHC.getSession
+  let unit_state = GHC.ue_units $ GHC.hsc_unit_env sess
+      explicit = GHC.explicitUnits unit_state
+      pkgcfgs = maybeToList . GHC.lookupUnit unit_state =<< explicit
+#else
+  let explicit = GHC.explicitPackages $ GHC.pkgState dflags
+      pkgcfgs = maybeToList . GHC.lookupPackage dflags =<< explicit
+#endif
   deps <- traverse getPkgSymbols pkgcfgs
 
   loadCompiledModules
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+  let unitid = GHC.homeUnitId_ dflags
+#else
   let unitid = GHC.thisPackage dflags
+#endif
       dirs = maybeToList $ GHC.hiDir dflags
   home_mods <- getTargetModules
   home_entries <- getSymbols unitid True [] home_mods dirs
@@ -88,37 +127,60 @@ getCompiledTargets dir = do
         if Set.member m provided
           then Just $ GHC.Target (GHC.TargetModule m) True Nothing
           else Nothing
-  pure $ mapMaybe (toTarget . moduleName) modules
+  pure $ mapMaybe (toTarget . GHC.moduleName) modules
 
 -- Perform an operation given the parsed .hi file. tcLookup will only succeed if
 -- the module is on the packagedb or is a home module that has been loaded.
 withHi :: GHC.GhcMonad m => FilePath -> (GHC.ModIface -> (GHC.TcRnIf GHC.TcGblEnv GHC.TcLclEnv) a) -> m (Maybe a)
 withHi hi f = do
   env <- GHC.getSession
-  (_, res) <- liftIO . initTcInteractive env $ do
-    iface <- readBinIface IgnoreHiWay QuietBinIFaceReading hi
+  (_, res) <- liftIO . GHC.initTcInteractive env $ do
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+    iface <- GHC.readBinIface GHC.IgnoreHiWay GHC.QuietBinIFace hi
+#else
+    iface <- GHC.readBinIface GHC.IgnoreHiWay GHC.QuietBinIFaceReading hi
+#endif
     f iface
   pure res
 
-getPkgSymbols :: GHC.GhcMonad m => PackageConfig -> m PackageEntries
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+getPkgSymbols :: GHC.GhcMonad m => GHC.UnitInfo -> m PackageEntries
+#else
+getPkgSymbols :: GHC.GhcMonad m => GHC.PackageConfig -> m PackageEntries
+#endif
 getPkgSymbols pkg =
-  let unitid = GHC.packageConfigId pkg
-      inplace = "-inplace" `isInfixOf` (GHC.unitIdString unitid)
-      exposed = Set.fromList $ fst <$> exposedModules pkg
-      dirs = (importDirs pkg)
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+  let exposed = Set.fromList $ fst <$> GHC.unitExposedModules pkg
+      GHC.GenericUnitInfo {GHC.unitId = unitid} = pkg
+      dirs = GHC.unpack <$> (GHC.unitImportDirs pkg)
+      haddocks = GHC.unpack <$> GHC.unitHaddockHTMLs pkg
+#else
+  let exposed = Set.fromList $ fst <$> GHC.exposedModules pkg
+      unitid = GHC.packageConfigId pkg
+      dirs = (GHC.importDirs pkg)
       haddocks = GHC.haddockHTMLs pkg
+#endif
+      unit_string = GHC.unitIdString unitid
+      inplace = "-inplace" `isInfixOf` unit_string
    in getSymbols unitid inplace haddocks exposed dirs
 
-getSymbols :: GHC.GhcMonad m => UnitId -> Bool -> [FilePath] -> Set GHC.ModuleName -> [FilePath] -> m PackageEntries
+getSymbols :: GHC.GhcMonad m => GHC.UnitId -> Bool -> [FilePath] -> Set GHC.ModuleName -> [FilePath] -> m PackageEntries
 getSymbols unitid inplace haddocks exposed dirs = do
   let findHis dir = liftIO $ walkSuffix ".hi" dir
   his <- join <$> traverse findHis dirs
   dflags <- GHC.getSessionDynFlags
-  let srcid = sourcePackageId <$> lookupPackage dflags unitid
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+  sess <- GHC.getSession
+  let unit_state = GHC.ue_units . GHC.hsc_unit_env $ sess
+      srcid = GHC.unitPackageId <$> GHC.lookupUnitId unit_state unitid
+#else
+  let srcid = GHC.sourcePackageId <$> GHC.lookupPackage dflags unitid
+      unit_state = dflags
+#endif
   symbols <- catMaybes <$> traverse (hiToSymbols exposed) his
   let entries = sort $ uncurry mkEntries <$> symbols
-      mkEntries m things = ModuleEntries (moduleName m) (sort $ renderThings things)
-      renderThings things = catMaybes $ (uncurry $ tyrender dflags unitid) <$> things
+      mkEntries m things = ModuleEntries (GHC.moduleName m) (sort $ renderThings things)
+      renderThings things = catMaybes $ (uncurry $ tyrender dflags unit_state unitid) <$> things
   pure $ PackageEntries srcid inplace entries (T.pack <$> haddocks)
 
 -- for a .hi file returns the module and a list of all things (with types
@@ -135,37 +197,52 @@ hiToSymbols exposed hi = (join <$>) <$> withHi hi $ \iface -> do
   if not $ Set.member (GHC.moduleName m) exposed
     then pure Nothing
     else do
-      let thing (Avail name) = traverse tcLookup' [name]
+      let thing (GHC.Avail name) = traverse tcLookup' [name]
           -- TODO the fields in AvailTC
-          thing (AvailTC _ members _) = traverse tcLookup' members
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+          thing (GHC.AvailTC _ members) = traverse tcLookup' members
+#else
+          thing (GHC.AvailTC _ members _) = traverse tcLookup' members
+#endif
           reexport name = do
             modl <- GHC.nameModule_maybe name
             if m == modl then Nothing else Just modl
-          tcLookup' name = (reexport name,) <$> tcLookup name
+          tcLookup' name =
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+            let name' = GHC.greNameMangledName name
+#else
+            let name' = name
+#endif
+             in (reexport name',) <$> GHC.tcLookup name'
       things <- join <$> traverse thing (GHC.mi_exports iface)
       pure . Just $ (m, things)
 
-tyrender :: GHC.DynFlags -> UnitId -> Maybe GHC.Module -> GHC.TcTyThing -> Maybe Entry
-tyrender dflags unitid m' (GHC.AGlobal thing) =
+-- FIXME lookup the packageid earlier
+tyrender :: GHC.DynFlags -> UnitState -> GHC.UnitId -> Maybe GHC.Module -> GHC.TcTyThing -> Maybe Entry
+tyrender dflags unit_state unitid m' (GHC.AGlobal thing) =
   let
-    m = mkExported dflags unitid <$> m'
+    m = mkExported dflags unit_state unitid <$> m'
     shw :: GHC.Outputable m => m -> Text
-    shw = T.pack . showPpr dflags
+    shw = T.pack . GHC.showPpr dflags
    in case thing of
     (GHC.AnId var) -> Just $ IdEntry m
       (shw $ GHC.idName var)
       (shw $ GHC.idType var)
     (GHC.AConLike (GHC.RealDataCon dc)) -> Just $ ConEntry m
       (shw $ GHC.getName dc)
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+      (shw $ GHC.dataConWrapperType dc)
+#else
       (shw $ GHC.dataConUserType dc)
+#endif
     (GHC.AConLike (GHC.PatSynCon ps)) -> Just $ PatSynEntry m
       (shw $ GHC.getName ps)
-      (T.pack . showSDoc dflags $ GHC.pprPatSynType ps )
+      (T.pack . GHC.showSDoc dflags $ GHC.pprPatSynType ps )
     (GHC.ATyCon tc) -> Just $ TyConEntry m
       (shw $ GHC.tyConName tc)
       (shw $ GHC.tyConFlavour tc)
     _ -> Nothing
-tyrender _ _ _ _ = Nothing
+tyrender _ _ _ _ _ = Nothing
 
 data Entry = IdEntry (Maybe Exported) Text Text -- ^ name type
            | ConEntry (Maybe Exported) Text Text -- ^ name type
@@ -215,8 +292,17 @@ instance ToSexp PackageEntries where
 {- BOILERPLATE END -}
 
 -- srcid is Nothing if it matches the re-export location
-data Exported = Exported (Maybe SourcePackageId) GHC.ModuleName
+data Exported = Exported (Maybe Text) GHC.ModuleName
   deriving (Eq, Ord)
+-- FIXME bring back the SourcePackageId field. Sort using explicit function.
+
+mkExported' :: (Maybe SourcePackageId) -> GHC.ModuleName -> Exported
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+mkExported' (Just (GHC.PackageId n)) m = Exported (Just . T.pack $ GHC.unpackFS n) m
+#else
+mkExported' (Just (GHC.SourcePackageId n)) m = Exported (Just . T.pack $ GHC.unpackFS n) m
+#endif
+mkExported' Nothing m = Exported Nothing m
 
 {- BOILERPLATE Exported ToSexp field=[srcid, module] -}
 {- BOILERPLATE START -}
@@ -224,12 +310,21 @@ instance ToSexp Exported where
   toSexp (Exported p_1_1 p_1_2) = alist [("srcid", toSexp p_1_1), ("module", toSexp p_1_2)]
 {- BOILERPLATE END -}
 
-mkExported :: GHC.DynFlags -> UnitId -> Module -> Exported
-mkExported dflags unitid m =
-  let unitid' = moduleUnitId m
-   in Exported
+-- TODO clean up this code by doing the unitid->package lookup earlier
+mkExported :: GHC.DynFlags -> UnitState -> GHC.UnitId -> GHC.Module -> Exported
+mkExported dflags unit_state unitid m =
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+  let unitid' = GHC.toUnitId . GHC.moduleUnit $ m
+#else
+  let unitid' = GHC.moduleUnitId m
+#endif
+   in mkExported'
         (if unitid == unitid'
            then Nothing
-           else sourcePackageId <$> lookupPackage dflags unitid')
-        (moduleName m)
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+           else GHC.unitPackageId <$> GHC.lookupUnit unit_state (GHC.moduleUnit m))
+#else
+           else GHC.sourcePackageId <$> GHC.lookupPackage dflags unitid')
+#endif
+        (GHC.moduleName m)
 

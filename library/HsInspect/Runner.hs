@@ -1,7 +1,16 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ViewPatterns #-}
 
 module HsInspect.Runner (runGhcAndJamMasterShe, ghcflags_flags) where
+
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import GHC.Driver.Session (parseDynamicFlagsCmdLine, updOptLevel)
+import qualified GHC.Data.EnumSet as EnumSet
+#else
+import DynFlags (parseDynamicFlagsCmdLine, updOptLevel)
+import qualified EnumSet as EnumSet
+#endif
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -10,8 +19,6 @@ import Data.List (find, isPrefixOf)
 import qualified Data.List as L
 import Data.Maybe (catMaybes)
 import qualified Data.Text as T
-import DynFlags (parseDynamicFlagsCmdLine, updOptLevel)
-import qualified EnumSet as EnumSet
 import GHC (Ghc, GhcMonad, getSessionDynFlags)
 import qualified GHC as GHC
 import HsInspect.Context
@@ -31,7 +38,12 @@ runGhcAndJamMasterShe (filterFlags -> flags) setTargets work =
   (updOptLevel 0 -> dflags', (GHC.unLoc <$>) -> _ghcargs, _) <-
     liftIO $ parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> flags')
   void $ GHC.setSessionDynFlags dflags'
-         { GHC.hscTarget = GHC.HscInterpreted -- HscNothing compiles home modules, dunno why
+         {
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+           GHC.backend = GHC.Interpreter -- HscNothing compiles home modules, dunno why
+#else
+           GHC.hscTarget = GHC.HscInterpreted -- HscNothing compiles home modules, dunno why
+#endif
          , GHC.ghcLink   = GHC.LinkInMemory   -- required by HscInterpreted
          , GHC.ghcMode   = GHC.MkDepend       -- prefer .hi to .hs for dependencies
          , GHC.warningFlags = EnumSet.empty

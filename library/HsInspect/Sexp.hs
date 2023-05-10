@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
 
@@ -7,10 +8,17 @@ module HsInspect.Sexp where
 import Data.String (IsString, fromString)
 import Data.Text (Text)
 import qualified Data.Text as T
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import GHC.Data.FastString (unpackFS)
+import GHC.Utils.Json (escapeJsonString)
+import GHC.Unit.Module.Name (ModuleName, moduleNameString)
+import GHC.Unit.Info (PackageName(..), PackageId(..))
+#else
 import FastString (unpackFS)
 import Json (escapeJsonString)
 import Module (ModuleName, moduleNameString)
 import PackageConfig (PackageName(..), SourcePackageId(..))
+#endif
 
 data Sexp
   = SexpCons Sexp Sexp
@@ -69,8 +77,13 @@ instance ToSexp a => ToSexp (Maybe a) where
   toSexp (Just a) = toSexp a
   toSexp Nothing = SexpNil
 
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+instance ToSexp PackageId where
+  toSexp (PackageId fs) = SexpString . T.pack $ unpackFS fs
+#else
 instance ToSexp SourcePackageId where
   toSexp (SourcePackageId fs) = SexpString . T.pack $ unpackFS fs
+#endif
 
 instance ToSexp ModuleName where
   toSexp = SexpString . T.pack . moduleNameString

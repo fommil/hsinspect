@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -8,17 +9,22 @@ module HsInspect.Imports
   )
 where
 
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import GHC.Types.Target (TargetId(..))
+import GHC.Types.Name.Reader (GlobalRdrElt(..), ImpDeclSpec(..), ImportSpec(..), globalRdrEnvElts)
+#else
+import HscTypes (TargetId(..))
+import RdrName (GlobalRdrElt(..), ImpDeclSpec(..), ImportSpec(..), globalRdrEnvElts)
+#endif
+
 import Data.List (sort)
 import Data.Maybe (fromJust)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified GHC as GHC
-import HscTypes (TargetId(..))
 import HsInspect.Sexp
 import HsInspect.Util
 import HsInspect.Workarounds
-import RdrName (GlobalRdrElt(..), ImpDeclSpec(..), ImportSpec(..),
-                globalRdrEnvElts)
 
 imports :: GHC.GhcMonad m => FilePath -> m [Qualified]
 imports file = do

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
 module HsInspect.Util where
@@ -7,9 +8,14 @@ import Data.List (find, isSuffixOf, nub)
 import Data.Maybe (catMaybes)
 import Data.Set (Set)
 import qualified Data.Set as Set
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import GHC.Utils.Outputable (Outputable, showPprUnsafe)
+#else
 import DynFlags (unsafeGlobalDynFlags)
-import qualified GHC as GHC
 import Outputable (Outputable, showPpr)
+#endif
+import qualified GHC as GHC
+
 import System.Directory (doesDirectoryExist, listDirectory, makeAbsolute)
 import System.FilePath (takeDirectory, takeFileName, (</>))
 
@@ -21,7 +27,11 @@ homeSources = do
   nub . concat <$> traverse infer paths
 
 showGhc :: (Outputable a) => a -> String
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+showGhc = showPprUnsafe
+#else
 showGhc = showPpr unsafeGlobalDynFlags
+#endif
 
 getTargetModules :: GHC.GhcMonad m => m (Set GHC.ModuleName)
 getTargetModules = do

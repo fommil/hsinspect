@@ -1,13 +1,13 @@
 cabal-version: 2.2
 name:          hsinspect
-version:       0.0.19
+version:       0.1.0
 synopsis:      Inspect Haskell source files.
 license:       GPL-3.0-or-later
 license-file:  LICENSE
 author:        Tseen She
 maintainer:    Tseen She
 copyright:     2019 Tseen She
-tested-with:   GHC ^>=8.8.3 || ^>=8.10.4
+tested-with:   GHC ^>=8.8.3 || ^>=8.10.7 || ^>=9.2.7
 category:      Building
 description:   Inspect @.hs@ files using the ghc api.
 

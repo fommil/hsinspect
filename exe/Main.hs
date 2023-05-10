@@ -4,12 +4,17 @@
 
 module Main where
 
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import qualified GHC.Version as GHC
+#else
 import qualified Config as GHC
+import DynFlags (unsafeGlobalDynFlags)
+#endif
+
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Except (runExceptT)
 import qualified Data.Text.IO as T
-import DynFlags (unsafeGlobalDynFlags)
 import HsInspect.Imports
 import HsInspect.Index
 import HsInspect.Json
@@ -62,9 +67,8 @@ main = do
         if (elem "--json" rest)
         then case sexpToJson a of
           Left err -> error err
-          Right j -> putStrLn $ encodeJson unsafeGlobalDynFlags j
+          Right j -> putStrLn $ encodeJson j
         else T.putStrLn $ S.render a
-
   runGhcAndJamMasterShe flags True $ case args of
     "imports" : file : rest -> do
       quals <- imports file

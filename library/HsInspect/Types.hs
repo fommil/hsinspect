@@ -1,8 +1,30 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module HsInspect.Types where
+
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import qualified GHC.Parser.Lexer as GHC
+import qualified GHC.Utils.Outputable as GHC
+import qualified GHC.Driver.Session as GHC
+import qualified GHC.Parser as Parser
+import qualified GHC.Rename.HsType as GHC
+import qualified GHC.Utils.Error as GHC
+import qualified GHC.Parser.Errors.Ppr as GHC
+#else
+import qualified DynFlags as GHC
+import qualified Lexer as GHC
+import qualified Outputable as GHC
+import qualified Parser
+import qualified RnTypes as GHC
+#endif
+
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#elif MIN_VERSION_GLASGOW_HASKELL(8,1,0,0)
+import qualified ErrUtils as GHC
+#endif
 
 import Control.Exception (throwIO)
 import Control.Monad.IO.Class (liftIO)
@@ -10,19 +32,11 @@ import Data.List (sortOn)
 import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
-import qualified DynFlags as GHC
-import GHC (HscEnv)
 import qualified GHC as GHC
+
 import HsInspect.Sexp
 import qualified HsInspect.Util as H
 import HsInspect.Workarounds (mkCppState)
-import qualified Lexer as GHC
-import qualified Outputable as GHC
-import qualified Parser
-import qualified RnTypes as GHC
-#if __GLASGOW_HASKELL__ >= 810
-import qualified ErrUtils as GHC
-#endif
 
 data Type = ProductType Text [Text] Bool Text [(Text, [Text])]  -- ^^ type tparams newtype cons [(param types, [typarams])]
           | RecordType Text [Text] Bool Text [(Text, Text, [Text])] -- ^^ type tparams newtype cons [(fieldname, param type, [typarams])]
@@ -65,10 +79,10 @@ types file = do
   dflags <- GHC.getSessionDynFlags
   _ <- GHC.setSessionDynFlags $ GHC.gopt_set dflags GHC.Opt_KeepRawTokenStream
   env <- GHC.getSession
-  liftIO $ parseTypes env file
+  liftIO $ parseTypes dflags env file
 
-parseTypes :: HscEnv -> FilePath -> IO ([Type], [Comment])
-parseTypes env file = do
+parseTypes :: GHC.DynFlags -> GHC.HscEnv -> FilePath -> IO ([Type], [Comment])
+parseTypes dflags env file = do
   (pstate, _) <- mkCppState env file
   let showGhc :: GHC.Outputable a => a -> Text
       showGhc = T.pack . H.showGhc
@@ -89,7 +103,7 @@ parseTypes env file = do
                 GHC.DataType -> False
               renderTyParams :: GHC.LHsType GHC.GhcPs -> [Text]
               renderTyParams tpe = showGhc <$>
-#if __GLASGOW_HASKELL__ >= 810
+#if MIN_VERSION_GLASGOW_HASKELL(8,1,0,0)
                 GHC.extractHsTyRdrTyVars tpe
 #else
                 (GHC.freeKiTyVarsTypeVars $ GHC.extractHsTyRdrTyVars tpe)
@@ -98,8 +112,13 @@ parseTypes env file = do
               renderField (GHC.L _ field) =
                 let tpe = GHC.cd_fld_type field
                  in (showGhc . head $ GHC.cd_fld_names field, showGhc tpe, renderTyParams tpe)
-              renderArg :: GHC.LBangType GHC.GhcPs -> (Text, [Text]) -- (type, typarams)
-              renderArg t@(GHC.L _ arg) = (showGhc arg, renderTyParams t)
+              renderArg' :: GHC.LBangType GHC.GhcPs -> (Text, [Text]) -- (type, typarams)
+              renderArg' t@(GHC.L _ arg) = (showGhc arg, renderTyParams t)
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+              renderArg = renderArg' . GHC.hsScaledThing
+#else
+              renderArg = renderArg'
+#endif
               -- rhs is (cons, [(field name, field type, [typarams])] | [(parameter type, [typarams])])
               rhs = do
                 (GHC.L _ ddl) <- GHC.dd_cons ddn
@@ -107,7 +126,11 @@ parseTypes env file = do
                   -- http://hackage.haskell.org/package/ghc-8.8.3/docs/HsDecls.html#t:ConDecl
                   GHC.ConDeclH98 _ cons _ _ _ (GHC.RecCon (GHC.L _ fields)) _ -> [(showGhc cons, Left $ renderField <$> fields)]
                   GHC.ConDeclH98 _ cons _ _ _ (GHC.InfixCon a1 a2) _ -> [("(" <> showGhc cons <> ")", Right $ renderArg <$> [a1, a2])]
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+                  GHC.ConDeclH98 _ cons _ _ _ (GHC.PrefixCon _ args) _ -> [(showGhc cons, Right $ renderArg <$> args)]
+#else
                   GHC.ConDeclH98 _ cons _ _ _ (GHC.PrefixCon args) _ -> [(showGhc cons, Right $ renderArg <$> args)]
+#endif
                   _ -> [] -- GADTS
 
              in case rhs of
@@ -121,31 +144,50 @@ parseTypes env file = do
 
           findType _ = Nothing
 
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+          renderTparam :: GHC.LHsTyVarBndr () GHC.GhcPs -> Text
+          renderTparam (GHC.L _ (GHC.UserTyVar _ _ p)) = showGhc p
+          renderTparam (GHC.L _ (GHC.KindedTyVar _ _ p _)) = showGhc p
+          extractComment (GHC.L (GHC.anchor -> pos) c) =
+#else
           renderTparam :: GHC.GenLocated l (GHC.HsTyVarBndr GHC.GhcPs) -> Text
           renderTparam (GHC.L _ (GHC.UserTyVar _ p)) = showGhc p
           renderTparam (GHC.L _ (GHC.KindedTyVar _ p _)) = showGhc p
           renderTparam (GHC.L _ (GHC.XTyVarBndr _)) = "<unsupported>"
-
           extractComment (GHC.L (GHC.RealSrcSpan pos) c) =
+#endif
             let start = Pos (GHC.srcSpanStartLine pos) (GHC.srcSpanStartCol pos)
                 end = Pos (GHC.srcSpanEndLine pos) (GHC.srcSpanEndCol pos)
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+             in (\str -> Comment (T.pack str) start end) <$> case GHC.ac_tok c of
+            (GHC.EpaLineComment txt) -> Just txt
+            (GHC.EpaBlockComment txt) -> Just txt
+            _ -> Nothing
+#else
              in (\str -> Comment (T.pack str) start end) <$> case c of
             (GHC.AnnLineComment txt) -> Just txt
             (GHC.AnnBlockComment txt) -> Just txt
             _ -> Nothing
           extractComment _ = Nothing
-
+#endif
           types = mapMaybe findType decls
           comments = mapMaybe extractComment $ GHC.comment_q st
 
       pure (types, sortOn (\(Comment _ s _) -> s) comments)
 
-#if __GLASGOW_HASKELL__ >= 810
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+    GHC.PFailed st ->
+      let errs = GHC.interppSP
+            . GHC.pprMsgEnvelopeBagWithLoc
+            . fmap GHC.pprError
+            $ GHC.getErrorMessages st
+      in throwIO . userError $ "unable to parse " <> file <> " due to " <> GHC.showSDocUnsafe errs
+#elif MIN_VERSION_GLASGOW_HASKELL(8,1,0,0)
     GHC.PFailed st ->
       let errs = GHC.interppSP
             . GHC.pprErrMsgBagWithLoc
             . GHC.getErrorMessages st
-            $ GHC.unsafeGlobalDynFlags
+            $ dflags
       in throwIO . userError $ "unable to parse " <> file <> " due to " <> GHC.showSDocUnsafe errs
 #else
     GHC.PFailed _ _ err -> throwIO . userError $ "unable to parse " <> file <> " due to " <> GHC.showSDocUnsafe err

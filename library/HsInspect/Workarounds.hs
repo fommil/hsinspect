@@ -10,35 +10,57 @@ import Control.Monad.IO.Class
 import Data.List (delete, intercalate, isSuffixOf)
 import Data.Set (Set)
 import qualified Data.Set as Set
+
+-- FIXME qualified imports *everywhere*
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import GHC.Driver.Pipeline (preprocess)
+import GHC.Driver.Session (parseDynamicFilePragma)
+import GHC.Data.FastString
+import GHC.Parser.Header (getOptions)
+import GHC.Types.Target (Target(..), TargetId(..))
+import GHC.Parser.Lexer
+import GHC.Parser (parseHeader)
+import GHC.Types.SrcLoc
+import GHC.Types.Name.Reader (GlobalRdrEnv)
+import GHC.Data.StringBuffer
+import qualified GHC.Driver.Config as GHC
+import GHC.Driver.Ppr (showPpr)
+#else
 import DriverPipeline (preprocess)
 import DynFlags (parseDynamicFilePragma)
 import FastString
-import qualified GHC as GHC
 import HeaderInfo (getOptions)
 import HscTypes (HscEnv, Target(..), TargetId(..))
-#if MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
-import GHC.Hs.ImpExp (ImportDecl(..))
-#else
-import HsImpExp (ImportDecl(..))
-#endif
 import Lexer
 import Outputable (showPpr)
 import Parser (parseHeader)
 import RdrName (GlobalRdrEnv)
 import SrcLoc
 import StringBuffer
-import System.Directory (getModificationTime, removeFile)
+#endif
 
-#if MIN_VERSION_GLASGOW_HASKELL(8,8,2,0)
+#if MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
+import GHC.Hs.ImpExp (ImportDecl(..))
+#else
+import HsImpExp (ImportDecl(..))
+#endif
+
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import Data.Maybe (fromJust, fromMaybe)
+import GHC.Types.Name.Occurrence (emptyOccEnv)
+#elif MIN_VERSION_GLASGOW_HASKELL(8,8,2,0)
 import Data.Maybe (fromJust, fromMaybe)
 import OccName (emptyOccEnv)
 #else
 import TcRnTypes (tcg_rdr_env)
 #endif
 
+import qualified GHC as GHC
+import System.Directory (getModificationTime, removeFile)
+
 -- applies CPP rules to the input file and extracts the pragmas,
 -- a more portable alternative to GHC.hGetStringBuffer
-mkCppState :: HscEnv -> FilePath -> IO (PState, [Located String])
+mkCppState :: GHC.HscEnv -> FilePath -> IO (PState, [Located String])
 mkCppState sess file = do
 #if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
   pp <- preprocess sess file Nothing Nothing
@@ -53,10 +75,17 @@ mkCppState sess file = do
     liftIO . removeFile $ tmp
   let pragmas = getOptions dflags full file
       loc  = mkRealSrcLoc (mkFastString file) 1 1
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+      mkPState = initParserState . GHC.initParserOpts
+#endif
   (dflags', _, _) <- parseDynamicFilePragma dflags pragmas
   pure $ (mkPState dflags' full loc, pragmas)
 
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+parseHeader' :: GHC.GhcMonad m => FilePath -> m ([String], GHC.HsModule)
+#else
 parseHeader' :: GHC.GhcMonad m => FilePath -> m ([String], GHC.HsModule GHC.GhcPs)
+#endif
 parseHeader' file = do
   sess <- GHC.getSession
   (pstate, pragmas) <- liftIO $ mkCppState sess file
@@ -68,8 +97,10 @@ importsOnly :: GHC.GhcMonad m => Set GHC.ModuleName -> FilePath -> m (Maybe GHC.
 importsOnly homes file = do
   dflags <- GHC.getSessionDynFlags
   (pragmas, hsmod) <- parseHeader' file
-  let allowed (L _ (ImportDecl{ideclName})) = Set.notMember (unLoc ideclName) homes
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,0,0)
+  let allowed :: GenLocated l (ImportDecl GHC.GhcPs) -> Bool
+      allowed (L _ (ImportDecl{ideclName})) = Set.notMember (unLoc ideclName) homes
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#elif MIN_VERSION_GLASGOW_HASKELL(8,6,0,0)
       allowed (L _ (XImportDecl _)) = False
 #endif
       modname = unLoc <$> GHC.hsmodName hsmod
@@ -111,5 +142,3 @@ minf_rdr_env' m = do
   let (tc_gbl_env, _) = GHC.tm_internals_ tmod
   pure $ tcg_rdr_env tc_gbl_env
 #endif
-
-

@@ -1,17 +1,24 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
 
 module HsInspect.Json where
 
 import qualified Data.Text as T
-import qualified GHC as GHC
 import HsInspect.Sexp
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import GHC.Utils.Json
+import GHC.Utils.Monad (mapSndM)
+import GHC.Utils.Outputable (showSDocUnsafe)
+import GHC.Utils.Misc (mapFst)
+#else
 import Json
 import MonadUtils (mapSndM)
-import Outputable (showSDoc)
+import Outputable (showSDocUnsafe)
 import Util (mapFst)
+#endif
 
-encodeJson :: GHC.DynFlags -> JsonDoc -> String
-encodeJson dflags j = showSDoc dflags . renderJSON $ j
+encodeJson :: JsonDoc -> String
+encodeJson j = showSDocUnsafe . renderJSON $ j
 
 sexpToJson :: Sexp -> Either String JsonDoc
 sexpToJson SexpNil = Right JSNull

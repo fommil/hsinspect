@@ -19,7 +19,12 @@ import Data.IORef
 import Data.List (stripPrefix)
 import Data.Time.Clock (diffTimeToPicoseconds, getCurrentTime, utctDayTime)
 import qualified GHC
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import qualified GHC.Plugins as GHC
+import qualified GHC.Driver.Backend as GHC
+#else
 import qualified GhcPlugins as GHC
+#endif
 import System.Directory (doesFileExist, removeFile, renameFile)
 import System.Environment
 import System.IO.Error (catchIOError)
@@ -64,10 +69,14 @@ write = do
       writeGhcPath path = case ghcPath of
         Just p -> writeDifferent (path <> "/.ghc.path") p
         Nothing -> pure ()
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+      enable = GHC.backendProducesObject $ GHC.backend dflags
+#else
       enable = case GHC.hscTarget dflags of
         GHC.HscInterpreted -> False
         GHC.HscNothing -> False
         _ -> True
+#endif
 
   when enable $ liftIO $ do
     traverse_ writeGhcFlags paths
