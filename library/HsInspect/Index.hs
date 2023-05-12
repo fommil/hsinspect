@@ -10,20 +10,6 @@ module HsInspect.Index
   )
 where
 
-import Control.Monad
-import Control.Monad.IO.Class
-import Data.List (isInfixOf, sort)
-import Data.Maybe (catMaybes, mapMaybe, maybeToList)
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Text (Text)
-import qualified Data.Text as T
-import qualified GHC
-
-import HsInspect.Json ()
-import HsInspect.Sexp
-import HsInspect.Util
-
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 import qualified GHC.Core.ConLike as GHC
 import qualified GHC.Core.PatSyn as GHC
@@ -62,6 +48,18 @@ import qualified TcEnv as GHC
 import qualified TcRnMonad as GHC
 import qualified TyCon as GHC
 #endif
+import qualified GHC
+
+import Control.Monad
+import Control.Monad.IO.Class
+import Data.List (isInfixOf, sort)
+import Data.Maybe (catMaybes, mapMaybe, maybeToList)
+import Data.Set (Set)
+import qualified Data.Set as Set
+import Data.Text (Text)
+import qualified Data.Text as T
+import HsInspect.Sexp
+import HsInspect.Util
 
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 type SourcePackageId = GHC.PackageId

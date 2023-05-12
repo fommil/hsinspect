@@ -8,7 +8,6 @@ module Main where
 import qualified GHC.Version as GHC
 #else
 import qualified Config as GHC
-import DynFlags (unsafeGlobalDynFlags)
 #endif
 
 import Control.Monad

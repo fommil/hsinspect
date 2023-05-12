@@ -11,20 +11,20 @@ import qualified GHC.Utils.Outputable as GHC
 import qualified GHC.Driver.Session as GHC
 import qualified GHC.Parser as Parser
 import qualified GHC.Rename.HsType as GHC
-import qualified GHC.Utils.Error as GHC
-import qualified GHC.Parser.Errors.Ppr as GHC
 #else
 import qualified DynFlags as GHC
 import qualified Lexer as GHC
 import qualified Outputable as GHC
-import qualified Parser
+import qualified Parser as Parser
 import qualified RnTypes as GHC
 #endif
-
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-#elif MIN_VERSION_GLASGOW_HASKELL(8,1,0,0)
+import qualified GHC.Utils.Error as GHC
+import qualified GHC.Parser.Errors.Ppr as GHC
+#elif MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
 import qualified ErrUtils as GHC
 #endif
+import qualified GHC as GHC
 
 import Control.Exception (throwIO)
 import Control.Monad.IO.Class (liftIO)
@@ -32,8 +32,6 @@ import Data.List (sortOn)
 import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
-import qualified GHC as GHC
-
 import HsInspect.Sexp
 import qualified HsInspect.Util as H
 import HsInspect.Workarounds (mkCppState)
@@ -103,7 +101,7 @@ parseTypes dflags env file = do
                 GHC.DataType -> False
               renderTyParams :: GHC.LHsType GHC.GhcPs -> [Text]
               renderTyParams tpe = showGhc <$>
-#if MIN_VERSION_GLASGOW_HASKELL(8,1,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
                 GHC.extractHsTyRdrTyVars tpe
 #else
                 (GHC.freeKiTyVarsTypeVars $ GHC.extractHsTyRdrTyVars tpe)
@@ -182,7 +180,7 @@ parseTypes dflags env file = do
             . fmap GHC.pprError
             $ GHC.getErrorMessages st
       in throwIO . userError $ "unable to parse " <> file <> " due to " <> GHC.showSDocUnsafe errs
-#elif MIN_VERSION_GLASGOW_HASKELL(8,1,0,0)
+#elif MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
     GHC.PFailed st ->
       let errs = GHC.interppSP
             . GHC.pprErrMsgBagWithLoc

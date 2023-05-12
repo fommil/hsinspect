@@ -5,12 +5,13 @@
 module HsInspect.Runner (runGhcAndJamMasterShe, ghcflags_flags) where
 
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-import GHC.Driver.Session (parseDynamicFlagsCmdLine, updOptLevel)
-import qualified GHC.Data.EnumSet as EnumSet
+import qualified GHC.Driver.Session as GHC
+import qualified GHC.Data.EnumSet as GHC
 #else
-import DynFlags (parseDynamicFlagsCmdLine, updOptLevel)
-import qualified EnumSet as EnumSet
+import qualified DynFlags as GHC
+import qualified EnumSet as GHC
 #endif
+import qualified GHC as GHC
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -19,8 +20,6 @@ import Data.List (find, isPrefixOf)
 import qualified Data.List as L
 import Data.Maybe (catMaybes)
 import qualified Data.Text as T
-import GHC (Ghc, GhcMonad, getSessionDynFlags)
-import qualified GHC as GHC
 import HsInspect.Context
 import HsInspect.Util (homeSources)
 import HsInspect.Workarounds (parseModuleName')
@@ -29,14 +28,14 @@ import System.Environment (setEnv)
 
 -- expects the PWD to be the same as the .cabal file and the PATH to be what the
 -- build tool sees.
-runGhcAndJamMasterShe :: [String] -> Bool -> Ghc a -> IO a
+runGhcAndJamMasterShe :: [String] -> Bool -> GHC.Ghc a -> IO a
 runGhcAndJamMasterShe (filterFlags -> flags) setTargets work =
   let libdir = (drop 2) <$> find ("-B" `isPrefixOf`) flags
       flags' = filter (not . ("-B" `isPrefixOf`)) flags
    in GHC.runGhc libdir $ do
   dflags <- GHC.getSessionDynFlags
-  (updOptLevel 0 -> dflags', (GHC.unLoc <$>) -> _ghcargs, _) <-
-    liftIO $ parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> flags')
+  (GHC.updOptLevel 0 -> dflags', (GHC.unLoc <$>) -> _ghcargs, _) <-
+    liftIO $ GHC.parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> flags')
   void $ GHC.setSessionDynFlags dflags'
          {
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
@@ -46,8 +45,8 @@ runGhcAndJamMasterShe (filterFlags -> flags) setTargets work =
 #endif
          , GHC.ghcLink   = GHC.LinkInMemory   -- required by HscInterpreted
          , GHC.ghcMode   = GHC.MkDepend       -- prefer .hi to .hs for dependencies
-         , GHC.warningFlags = EnumSet.empty
-         , GHC.fatalWarningFlags = EnumSet.empty
+         , GHC.warningFlags = GHC.empty
+         , GHC.fatalWarningFlags = GHC.empty
          }
 
   when setTargets $ do

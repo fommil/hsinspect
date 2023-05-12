@@ -10,18 +10,18 @@ module HsInspect.Imports
 where
 
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-import GHC.Types.Target (TargetId(..))
-import GHC.Types.Name.Reader (GlobalRdrElt(..), ImpDeclSpec(..), ImportSpec(..), globalRdrEnvElts)
+import qualified GHC.Types.Target as GHC
+import qualified GHC.Types.Name.Reader as GHC
 #else
-import HscTypes (TargetId(..))
-import RdrName (GlobalRdrElt(..), ImpDeclSpec(..), ImportSpec(..), globalRdrEnvElts)
+import qualified HscTypes as GHC
+import qualified RdrName as GHC
 #endif
+import qualified GHC as GHC
 
 import Data.List (sort)
 import Data.Maybe (fromJust)
 import Data.Text (Text)
 import qualified Data.Text as T
-import qualified GHC as GHC
 import HsInspect.Sexp
 import HsInspect.Util
 import HsInspect.Workarounds
@@ -30,7 +30,7 @@ imports :: GHC.GhcMonad m => FilePath -> m [Qualified]
 imports file = do
   (fromJust -> m, target) <- importsOnly mempty file
 
-  GHC.removeTarget $ TargetModule m
+  GHC.removeTarget $ GHC.TargetModule m
   GHC.addTarget target
 
   -- performance can be very bad here if the user hasn't compiled recently. We
@@ -40,12 +40,12 @@ imports file = do
   _ <- GHC.load $ GHC.LoadUpTo m
 
   rdr_env <- minf_rdr_env' m
-  pure . sort $ describe =<< globalRdrEnvElts rdr_env
+  pure . sort $ describe =<< GHC.globalRdrEnvElts rdr_env
 
-describe :: GlobalRdrElt -> [Qualified]
-describe GRE {gre_name, gre_imp} = describe' <$> gre_imp
+describe :: GHC.GlobalRdrElt -> [Qualified]
+describe GHC.GRE {GHC.gre_name, GHC.gre_imp} = describe' <$> gre_imp
   where
-    describe' ImpSpec {is_decl = ImpDeclSpec {is_mod, is_as, is_qual}} =
+    describe' GHC.ImpSpec {GHC.is_decl = GHC.ImpDeclSpec {GHC.is_mod, GHC.is_as, GHC.is_qual}} =
       let ln =
             if is_qual
               then Nothing

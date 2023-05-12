@@ -5,20 +5,22 @@
 -- | Very minimal ADT for outputting some S-Expressions.
 module HsInspect.Sexp where
 
+-- FIXME don't depend on GHC types in our ADT
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import qualified GHC.Data.FastString as GHC
+import qualified GHC.Utils.Json as GHC
+import qualified GHC.Unit.Module.Name as GHC
+import qualified GHC.Unit.Info as GHC
+#else
+import qualified FastString as GHC
+import qualified Json as GHC
+import qualified Module as GHC
+import qualified PackageConfig as GHC
+#endif
+
 import Data.String (IsString, fromString)
 import Data.Text (Text)
 import qualified Data.Text as T
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-import GHC.Data.FastString (unpackFS)
-import GHC.Utils.Json (escapeJsonString)
-import GHC.Unit.Module.Name (ModuleName, moduleNameString)
-import GHC.Unit.Info (PackageName(..), PackageId(..))
-#else
-import FastString (unpackFS)
-import Json (escapeJsonString)
-import Module (ModuleName, moduleNameString)
-import PackageConfig (PackageName(..), SourcePackageId(..))
-#endif
 
 data Sexp
   = SexpCons Sexp Sexp
@@ -78,18 +80,18 @@ instance ToSexp a => ToSexp (Maybe a) where
   toSexp Nothing = SexpNil
 
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-instance ToSexp PackageId where
-  toSexp (PackageId fs) = SexpString . T.pack $ unpackFS fs
+instance ToSexp GHC.PackageId where
+  toSexp (GHC.PackageId fs) = SexpString . T.pack $ GHC.unpackFS fs
 #else
-instance ToSexp SourcePackageId where
-  toSexp (SourcePackageId fs) = SexpString . T.pack $ unpackFS fs
+instance ToSexp GHC.SourcePackageId where
+  toSexp (GHC.SourcePackageId fs) = SexpString . T.pack $ GHC.unpackFS fs
 #endif
 
-instance ToSexp ModuleName where
-  toSexp = SexpString . T.pack . moduleNameString
+instance ToSexp GHC.ModuleName where
+  toSexp = SexpString . T.pack . GHC.moduleNameString
 
-instance ToSexp PackageName where
-  toSexp (PackageName fs) = SexpString . T.pack $ unpackFS fs
+instance ToSexp GHC.PackageName where
+  toSexp (GHC.PackageName fs) = SexpString . T.pack $ GHC.unpackFS fs
 
 filterNil :: Sexp -> Sexp
 filterNil SexpNil = SexpNil
@@ -103,7 +105,7 @@ render :: Sexp -> Text
 render SexpNil = "nil"
 render (toList -> Just ss) = "(" <> (T.intercalate " " $ render <$> ss) <> ")\n"
 render (SexpCons a b) = "(" <> render a <> " . " <> render b <> ")\n"
-render (SexpString s) = "\"" <> (T.pack . escapeJsonString $ T.unpack s) <> "\""
-render (SexpSymbol a) = T.pack . escapeJsonString $ T.unpack a
+render (SexpString s) = "\"" <> (T.pack . GHC.escapeJsonString $ T.unpack s) <> "\""
+render (SexpSymbol a) = T.pack . GHC.escapeJsonString $ T.unpack a
 render (SexpInt i) = T.pack $ show i
 -- TODO write our own escapeString to avoid a ghc dep and improve perf
