@@ -5,19 +5,24 @@
 
 module HsInspect.Workarounds where
 
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
+import qualified GHC.Types.Target as GHC
+import qualified GHC.Driver.Config as GHC
+import qualified GHC.Driver.Ppr as GHC
+#elif MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import qualified GHC.Utils.Outputable as GHC
+#endif
+
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 import qualified GHC.Driver.Pipeline as Pipeline
 import qualified GHC.Driver.Session as GHC
 import qualified GHC.Data.FastString as GHC
 import qualified GHC.Parser.Header as GHC
-import qualified GHC.Types.Target as GHC
 import qualified GHC.Parser.Lexer as GHC
 import qualified GHC.Parser as GHC
 import qualified GHC.Types.SrcLoc as GHC
 import qualified GHC.Types.Name.Reader as GHC
 import qualified GHC.Data.StringBuffer as GHC
-import qualified GHC.Driver.Config as GHC
-import qualified GHC.Driver.Ppr as GHC
 #else
 import qualified DriverPipeline as Pipeline
 import qualified DynFlags as GHC
@@ -72,7 +77,7 @@ mkCppState sess file = do
     liftIO . removeFile $ tmp
   let pragmas = GHC.getOptions dflags full file
       loc  = GHC.mkRealSrcLoc (GHC.mkFastString file) 1 1
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
       mkPState' = GHC.initParserState . GHC.initParserOpts
 #else
       mkPState' = GHC.mkPState

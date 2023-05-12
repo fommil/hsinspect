@@ -38,7 +38,7 @@ runGhcAndJamMasterShe (filterFlags -> flags) setTargets work =
     liftIO $ GHC.parseDynamicFlagsCmdLine dflags (GHC.noLoc <$> flags')
   void $ GHC.setSessionDynFlags dflags'
          {
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
            GHC.backend = GHC.Interpreter -- HscNothing compiles home modules, dunno why
 #else
            GHC.hscTarget = GHC.HscInterpreted -- HscNothing compiles home modules, dunno why

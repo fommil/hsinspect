@@ -11,14 +11,18 @@ module HsInspect.Index
   )
 where
 
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
+import qualified GHC.Data.ShortText as GHC
+import qualified GHC.Driver.Env.Types as GHC
+import qualified GHC.Driver.Ppr as GHC
+import qualified GHC.Unit.Env as GHC
+#endif
+
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 import qualified GHC.Core.ConLike as GHC
 import qualified GHC.Core.PatSyn as GHC
 import qualified GHC.Core.TyCon as GHC
 import qualified GHC.Data.FastString as GHC
-import qualified GHC.Data.ShortText as GHC
-import qualified GHC.Driver.Env.Types as GHC
-import qualified GHC.Driver.Ppr as GHC
 import qualified GHC.Iface.Binary as GHC
 import qualified GHC.Tc.Types as GHC
 import qualified GHC.Tc.Utils.Env as GHC
@@ -27,7 +31,6 @@ import qualified GHC.Types.Avail as GHC
 import qualified GHC.Types.Id as GHC
 import qualified GHC.Types.Name as GHC
 import qualified GHC.Unit.Database as GHC
-import qualified GHC.Unit.Env as GHC
 import qualified GHC.Unit.State as GHC
 import qualified GHC.Unit.Types as GHC
 import qualified GHC.Utils.Outputable as GHC
@@ -69,9 +72,13 @@ index :: GHC.GhcMonad m => m [PackageEntries]
 index = do
   dflags <- GHC.getSessionDynFlags
 
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
   sess <- GHC.getSession
   let unit_state = GHC.ue_units $ GHC.hsc_unit_env sess
+      explicit = GHC.explicitUnits unit_state
+      pkgcfgs = maybeToList . GHC.lookupUnit unit_state =<< explicit
+#elif MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+  let unit_state = GHC.unitState dflags
       explicit = GHC.explicitUnits unit_state
       pkgcfgs = maybeToList . GHC.lookupUnit unit_state =<< explicit
 #else
@@ -81,8 +88,10 @@ index = do
   deps <- traverse getPkgSymbols pkgcfgs
 
   loadCompiledModules
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
   let unitid = GHC.homeUnitId_ dflags
+#elif MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+  let unitid = GHC.homeUnitId dflags
 #else
   let unitid = GHC.thisPackage dflags
 #endif
@@ -126,7 +135,7 @@ withHi :: GHC.GhcMonad m => FilePath -> (GHC.ModIface -> (GHC.TcRnIf GHC.TcGblEn
 withHi hi f = do
   env <- GHC.getSession
   (_, res) <- liftIO . GHC.initTcInteractive env $ do
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
     iface <- GHC.readBinIface GHC.IgnoreHiWay GHC.QuietBinIFace hi
 #else
     iface <- GHC.readBinIface GHC.IgnoreHiWay GHC.QuietBinIFaceReading hi
@@ -140,11 +149,16 @@ getPkgSymbols :: GHC.GhcMonad m => GHC.UnitInfo -> m PackageEntries
 getPkgSymbols :: GHC.GhcMonad m => GHC.PackageConfig -> m PackageEntries
 #endif
 getPkgSymbols pkg =
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
   let exposed = Set.fromList $ fst <$> GHC.unitExposedModules pkg
       GHC.GenericUnitInfo {GHC.unitId = unitid} = pkg
       dirs = GHC.unpack <$> (GHC.unitImportDirs pkg)
       haddocks = GHC.unpack <$> GHC.unitHaddockHTMLs pkg
+#elif MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+  let exposed = Set.fromList $ fst <$> GHC.unitExposedModules pkg
+      GHC.GenericUnitInfo {GHC.unitId = unitid} = pkg
+      dirs = GHC.unitImportDirs pkg
+      haddocks = GHC.unitHaddockHTMLs pkg
 #else
   let exposed = Set.fromList $ fst <$> GHC.exposedModules pkg
       unitid = GHC.packageConfigId pkg
@@ -160,9 +174,14 @@ getSymbols unitid inplace haddocks exposed dirs = do
   let findHis dir = liftIO $ walkSuffix ".hi" dir
   his <- join <$> traverse findHis dirs
   dflags <- GHC.getSessionDynFlags
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
   sess <- GHC.getSession
   let unit_state = GHC.ue_units . GHC.hsc_unit_env $ sess
+      findPid unitid' = GHC.unitPackageId <$> GHC.lookupUnitId unit_state unitid'
+      findUnitId = GHC.toUnitId . GHC.moduleUnit
+      mkPackageId (GHC.PackageId fs) = PackageId . T.pack $ GHC.unpackFS fs
+#elif MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+  let unit_state = GHC.unitState dflags
       findPid unitid' = GHC.unitPackageId <$> GHC.lookupUnitId unit_state unitid'
       findUnitId = GHC.toUnitId . GHC.moduleUnit
       mkPackageId (GHC.PackageId fs) = PackageId . T.pack $ GHC.unpackFS fs
@@ -206,7 +225,7 @@ hiToSymbols exposed hi = (join <$>) <$> withHi hi $ \iface -> do
     else do
       let thing (GHC.Avail name) = traverse tcLookup' [name]
           -- TODO the fields in AvailTC
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
           thing (GHC.AvailTC _ members) = traverse tcLookup' members
 #else
           thing (GHC.AvailTC _ members _) = traverse tcLookup' members
@@ -215,7 +234,7 @@ hiToSymbols exposed hi = (join <$>) <$> withHi hi $ \iface -> do
             modl <- GHC.nameModule_maybe name
             if m == modl then Nothing else Just modl
           tcLookup' name =
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
             let name' = GHC.greNameMangledName name
 #else
             let name' = name

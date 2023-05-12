@@ -18,9 +18,11 @@ import qualified Outputable as GHC
 import qualified Parser as Parser
 import qualified RnTypes as GHC
 #endif
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
 import qualified GHC.Utils.Error as GHC
 import qualified GHC.Parser.Errors.Ppr as GHC
+#elif MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import qualified GHC.Utils.Error as GHC
 #elif MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
 import qualified ErrUtils as GHC
 #endif
@@ -124,7 +126,7 @@ parseTypes env file = do
                   -- http://hackage.haskell.org/package/ghc-8.8.3/docs/HsDecls.html#t:ConDecl
                   GHC.ConDeclH98 _ cons _ _ _ (GHC.RecCon (GHC.L _ fields)) _ -> [(showGhc cons, Left $ renderField <$> fields)]
                   GHC.ConDeclH98 _ cons _ _ _ (GHC.InfixCon a1 a2) _ -> [("(" <> showGhc cons <> ")", Right $ renderArg <$> [a1, a2])]
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
                   GHC.ConDeclH98 _ cons _ _ _ (GHC.PrefixCon _ args) _ -> [(showGhc cons, Right $ renderArg <$> args)]
 #else
                   GHC.ConDeclH98 _ cons _ _ _ (GHC.PrefixCon args) _ -> [(showGhc cons, Right $ renderArg <$> args)]
@@ -146,17 +148,22 @@ parseTypes env file = do
           renderTparam :: GHC.LHsTyVarBndr () GHC.GhcPs -> Text
           renderTparam (GHC.L _ (GHC.UserTyVar _ _ p)) = showGhc p
           renderTparam (GHC.L _ (GHC.KindedTyVar _ _ p _)) = showGhc p
-          extractComment (GHC.L (GHC.anchor -> pos) c) =
 #else
           renderTparam :: GHC.GenLocated l (GHC.HsTyVarBndr GHC.GhcPs) -> Text
           renderTparam (GHC.L _ (GHC.UserTyVar _ p)) = showGhc p
           renderTparam (GHC.L _ (GHC.KindedTyVar _ p _)) = showGhc p
           renderTparam (GHC.L _ (GHC.XTyVarBndr _)) = "<unsupported>"
+#endif
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
+          extractComment (GHC.L (GHC.anchor -> pos) c) =
+#elif MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+          extractComment (GHC.L pos c) =
+#else
           extractComment (GHC.L (GHC.RealSrcSpan pos) c) =
 #endif
             let start = Pos (GHC.srcSpanStartLine pos) (GHC.srcSpanStartCol pos)
                 end = Pos (GHC.srcSpanEndLine pos) (GHC.srcSpanEndCol pos)
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
              in (\str -> Comment (T.pack str) start end) <$> case GHC.ac_tok c of
             (GHC.EpaLineComment txt) -> Just txt
             (GHC.EpaBlockComment txt) -> Just txt
@@ -166,6 +173,9 @@ parseTypes env file = do
             (GHC.AnnLineComment txt) -> Just txt
             (GHC.AnnBlockComment txt) -> Just txt
             _ -> Nothing
+#endif
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#else
           extractComment _ = Nothing
 #endif
           types = mapMaybe findType decls
@@ -173,7 +183,7 @@ parseTypes env file = do
 
       pure (types, sortOn (\(Comment _ s _) -> s) comments)
 
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
     GHC.PFailed st ->
       let errs = GHC.interppSP
             . GHC.pprMsgEnvelopeBagWithLoc

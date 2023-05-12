@@ -1,0 +1,10 @@
+[
+    {
+        "full": "Data.Functor.Contravariant.Divisible.Divisible",
+        "local": "Divisible"
+    },
+    {
+        "full": "Data.Functor.Contravariant.Divisible.conquered",
+        "local": "conquered"
+    }
+]

@@ -3,8 +3,11 @@
 
 module HsInspect.Util where
 
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
 import qualified GHC.Utils.Outputable as GHC
+#elif MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import qualified GHC.Utils.Outputable as GHC
+import qualified GHC.Driver.Session as GHC
 #else
 import qualified DynFlags as GHC
 import qualified Outputable as GHC
@@ -27,7 +30,7 @@ homeSources = do
   nub . concat <$> traverse infer paths
 
 showGhc :: (GHC.Outputable a) => a -> String
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
 showGhc = GHC.showPprUnsafe
 #else
 showGhc = GHC.showPpr GHC.unsafeGlobalDynFlags

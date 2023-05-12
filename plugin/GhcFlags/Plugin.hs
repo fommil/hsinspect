@@ -19,9 +19,11 @@ import Data.IORef
 import Data.List (stripPrefix)
 import Data.Time.Clock (diffTimeToPicoseconds, getCurrentTime, utctDayTime)
 import qualified GHC
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
 import qualified GHC.Plugins as GHC
 import qualified GHC.Driver.Backend as GHC
+#elif MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import qualified GHC.Plugins as GHC
 #else
 import qualified GhcPlugins as GHC
 #endif
@@ -69,7 +71,7 @@ write = do
       writeGhcPath path = case ghcPath of
         Just p -> writeDifferent (path <> "/.ghc.path") p
         Nothing -> pure ()
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,2,0,0)
       enable = GHC.backendProducesObject $ GHC.backend dflags
 #else
       enable = case GHC.hscTarget dflags of
