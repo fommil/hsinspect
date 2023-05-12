@@ -5,17 +5,10 @@
 -- | Very minimal ADT for outputting some S-Expressions.
 module HsInspect.Sexp where
 
--- FIXME don't depend on GHC types in our ADT
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-import qualified GHC.Data.FastString as GHC
 import qualified GHC.Utils.Json as GHC
-import qualified GHC.Unit.Module.Name as GHC
-import qualified GHC.Unit.Info as GHC
 #else
-import qualified FastString as GHC
 import qualified Json as GHC
-import qualified Module as GHC
-import qualified PackageConfig as GHC
 #endif
 
 import Data.String (IsString, fromString)
@@ -78,20 +71,6 @@ instance (ToSexp a1, ToSexp a2, ToSexp a3) => ToSexp (a1, a2, a3) where
 instance ToSexp a => ToSexp (Maybe a) where
   toSexp (Just a) = toSexp a
   toSexp Nothing = SexpNil
-
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-instance ToSexp GHC.PackageId where
-  toSexp (GHC.PackageId fs) = SexpString . T.pack $ GHC.unpackFS fs
-#else
-instance ToSexp GHC.SourcePackageId where
-  toSexp (GHC.SourcePackageId fs) = SexpString . T.pack $ GHC.unpackFS fs
-#endif
-
-instance ToSexp GHC.ModuleName where
-  toSexp = SexpString . T.pack . GHC.moduleNameString
-
-instance ToSexp GHC.PackageName where
-  toSexp (GHC.PackageName fs) = SexpString . T.pack $ GHC.unpackFS fs
 
 filterNil :: Sexp -> Sexp
 filterNil SexpNil = SexpNil

@@ -77,10 +77,10 @@ types file = do
   dflags <- GHC.getSessionDynFlags
   _ <- GHC.setSessionDynFlags $ GHC.gopt_set dflags GHC.Opt_KeepRawTokenStream
   env <- GHC.getSession
-  liftIO $ parseTypes dflags env file
+  liftIO $ parseTypes env file
 
-parseTypes :: GHC.DynFlags -> GHC.HscEnv -> FilePath -> IO ([Type], [Comment])
-parseTypes dflags env file = do
+parseTypes :: GHC.HscEnv -> FilePath -> IO ([Type], [Comment])
+parseTypes env file = do
   (pstate, _) <- mkCppState env file
   let showGhc :: GHC.Outputable a => a -> Text
       showGhc = T.pack . H.showGhc
@@ -185,7 +185,7 @@ parseTypes dflags env file = do
       let errs = GHC.interppSP
             . GHC.pprErrMsgBagWithLoc
             . GHC.getErrorMessages st
-            $ dflags
+            $ GHC.unsafeGlobalDynFlags
       in throwIO . userError $ "unable to parse " <> file <> " due to " <> GHC.showSDocUnsafe errs
 #else
     GHC.PFailed _ _ err -> throwIO . userError $ "unable to parse " <> file <> " due to " <> GHC.showSDocUnsafe err
