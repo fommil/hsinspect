@@ -4,6 +4,11 @@
 
 module HsInspect.Runner (runGhcAndJamMasterShe, ghcflags_flags) where
 
+#if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
+import qualified GHC.Driver.Env.Types as GHC
+import qualified GHC.Unit.Env as GHC
+#endif
+
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 import qualified GHC.Driver.Session as GHC
 import qualified GHC.Data.EnumSet as GHC
@@ -53,7 +58,13 @@ runGhcAndJamMasterShe (filterFlags -> flags) setTargets work =
     -- The caller may have provided a list of home modules, but we do not trust
     -- them because the ghcflags plugin does not keep the flags up to date for
     -- incremental compiles.
+#if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
+    sess <- GHC.getSession
+    let unitid = GHC.ue_current_unit $ GHC.hsc_unit_env sess
+        mkTarget m = GHC.Target (GHC.TargetModule m) True unitid Nothing
+#else
     let mkTarget m = GHC.Target (GHC.TargetModule m) True Nothing
+#endif
     homeModules <- inferHomeModules
     GHC.setTargets $ mkTarget <$> homeModules
 

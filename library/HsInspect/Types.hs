@@ -5,6 +5,18 @@
 
 module HsInspect.Types where
 
+#if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
+import qualified GHC.Utils.Error as GHC
+import qualified GHC.Types.Error as GHC
+#elif MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
+import qualified GHC.Utils.Error as GHC
+import qualified GHC.Parser.Errors.Ppr as GHC
+#elif MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import qualified GHC.Utils.Error as GHC
+#elif MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
+import qualified ErrUtils as GHC
+#endif
+
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 import qualified GHC.Parser.Lexer as GHC
 import qualified GHC.Utils.Outputable as GHC
@@ -18,14 +30,7 @@ import qualified Outputable as GHC
 import qualified Parser as Parser
 import qualified RnTypes as GHC
 #endif
-#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
-import qualified GHC.Utils.Error as GHC
-import qualified GHC.Parser.Errors.Ppr as GHC
-#elif MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-import qualified GHC.Utils.Error as GHC
-#elif MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
-import qualified ErrUtils as GHC
-#endif
+
 import qualified GHC as GHC
 
 import Control.Exception (throwIO)
@@ -183,7 +188,14 @@ parseTypes env file = do
 
       pure (types, sortOn (\(Comment _ s _) -> s) comments)
 
-#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
+    GHC.PFailed st ->
+      let errs = GHC.interppSP
+            . GHC.pprMsgEnvelopeBagWithLoc
+            . GHC.getMessages
+            $ GHC.getPsErrorMessages st
+      in throwIO . userError $ "unable to parse " <> file <> " due to " <> GHC.showSDocUnsafe errs
+#elif MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
     GHC.PFailed st ->
       let errs = GHC.interppSP
             . GHC.pprMsgEnvelopeBagWithLoc

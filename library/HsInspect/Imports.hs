@@ -14,18 +14,22 @@ import qualified GHC.Types.Target as GHC
 import qualified GHC.Types.Name.Reader as GHC
 #endif
 
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
+import qualified GHC.Driver.Env.Types as GHC
+import qualified GHC.Unit.Env as GHC
+import qualified GHC.Data.Bag as GHC
+#elif MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 import qualified GHC.Types.Name.Reader as GHC
 #else
 import qualified HscTypes as GHC
 import qualified RdrName as GHC
 #endif
-import qualified GHC as GHC
 
 import Data.List (sort)
 import Data.Maybe (fromJust)
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified GHC as GHC
 import HsInspect.Sexp
 import HsInspect.Util
 import HsInspect.Workarounds
@@ -41,13 +45,24 @@ imports file = do
   -- could do the Index hack and only load things that have .hi files but that
   -- will result in very bizarre behaviour and we don't expect the user's code
   -- to be compilable at this point.
+#if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
+  sess <- GHC.getSession
+  let unitid = GHC.ue_current_unit $ GHC.hsc_unit_env sess
+  _ <- GHC.load $ GHC.LoadUpTo (GHC.mkModule unitid m)
+#else
   _ <- GHC.load $ GHC.LoadUpTo m
+#endif
 
   rdr_env <- minf_rdr_env' m
   pure . sort $ describe =<< GHC.globalRdrEnvElts rdr_env
 
 describe :: GHC.GlobalRdrElt -> [Qualified]
-describe GHC.GRE {GHC.gre_name, GHC.gre_imp} = describe' <$> gre_imp
+describe GHC.GRE {GHC.gre_name, GHC.gre_imp} =
+#if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
+  describe' <$> GHC.bagToList gre_imp
+#else
+  describe' <$> gre_imp
+#endif
   where
     describe' GHC.ImpSpec {GHC.is_decl = GHC.ImpDeclSpec {GHC.is_mod, GHC.is_as, GHC.is_qual}} =
       let ln =

@@ -1,0 +1,212 @@
+[
+    [
+        {
+            "class": "product",
+            "cons": "Coordy1",
+            "params": [
+                [
+                    "Double",
+                    null
+                ],
+                [
+                    "Double",
+                    null
+                ]
+            ],
+            "type": "Coord1"
+        },
+        {
+            "class": "record",
+            "cons": "Coordy2",
+            "fields": [
+                [
+                    "a",
+                    "Double",
+                    null
+                ],
+                [
+                    "b",
+                    "Double",
+                    null
+                ]
+            ],
+            "type": "Coord2"
+        },
+        {
+            "class": "sum",
+            "data": [
+                [
+                    "Wales",
+                    [
+                        [
+                            "String",
+                            null
+                        ]
+                    ]
+                ],
+                [
+                    "England",
+                    [
+                        [
+                            "Int",
+                            null
+                        ],
+                        [
+                            "Int",
+                            null
+                        ]
+                    ]
+                ],
+                [
+                    "Scotland",
+                    null
+                ]
+            ],
+            "type": "Union"
+        },
+        {
+            "class": "record",
+            "cons": "C",
+            "fields": [
+                [
+                    "foo",
+                    "Int",
+                    null
+                ]
+            ],
+            "newtype": "t",
+            "type": "Coord"
+        },
+        {
+            "class": "product",
+            "cons": "T",
+            "params": [
+                [
+                    "a",
+                    [
+                        "a"
+                    ]
+                ],
+                [
+                    "b",
+                    [
+                        "b"
+                    ]
+                ],
+                [
+                    "Double",
+                    null
+                ]
+            ],
+            "tparams": [
+                "a",
+                "b"
+            ],
+            "type": "Things"
+        },
+        {
+            "class": "record",
+            "cons": "Logger",
+            "fields": [
+                [
+                    "log",
+                    "String -> m ()",
+                    [
+                        "m"
+                    ]
+                ]
+            ],
+            "tparams": [
+                "m"
+            ],
+            "type": "Logger"
+        },
+        {
+            "class": "sum",
+            "data": [
+                [
+                    "Admin",
+                    [
+                        [
+                            "[a]",
+                            [
+                                "a"
+                            ]
+                        ],
+                        [
+                            "String",
+                            null
+                        ]
+                    ]
+                ],
+                [
+                    "User",
+                    [
+                        [
+                            "a",
+                            [
+                                "a"
+                            ]
+                        ],
+                        [
+                            "String",
+                            null
+                        ]
+                    ]
+                ]
+            ],
+            "tparams": [
+                "a"
+            ],
+            "type": "Action"
+        },
+        {
+            "class": "product",
+            "cons": "(:|)",
+            "params": [
+                [
+                    "String",
+                    null
+                ],
+                [
+                    "String",
+                    null
+                ]
+            ],
+            "type": "InfixProd"
+        },
+        {
+            "class": "sum",
+            "data": [
+                [
+                    "(:||)",
+                    [
+                        [
+                            "String",
+                            null
+                        ],
+                        [
+                            "String",
+                            null
+                        ]
+                    ]
+                ],
+                [
+                    "(:|||)",
+                    [
+                        [
+                            "String",
+                            null
+                        ],
+                        [
+                            "String",
+                            null
+                        ]
+                    ]
+                ]
+            ],
+            "type": "InfixSum"
+        }
+    ],
+    null
+]

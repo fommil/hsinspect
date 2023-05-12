@@ -5,7 +5,13 @@
 
 module HsInspect.Workarounds where
 
-#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
+import qualified GHC.Driver.Config.Parser as GHC
+import qualified GHC.Driver.Env.Types as GHC
+import qualified GHC.Driver.Ppr as GHC
+import qualified GHC.Types.Target as GHC
+import qualified GHC.Unit.Env as GHC
+#elif MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
 import qualified GHC.Types.Target as GHC
 import qualified GHC.Driver.Config as GHC
 import qualified GHC.Driver.Ppr as GHC
@@ -75,7 +81,11 @@ mkCppState sess file = do
   full <- GHC.hGetStringBuffer tmp
   when (".hscpp" `isSuffixOf` tmp) $
     liftIO . removeFile $ tmp
+#if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
+  let (_, pragmas) = GHC.getOptions (GHC.initParserOpts dflags) full file
+#else
   let pragmas = GHC.getOptions dflags full file
+#endif
       loc  = GHC.mkRealSrcLoc (GHC.mkFastString file) 1 1
 #if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
       mkPState' = GHC.initParserState . GHC.initParserOpts
@@ -125,7 +135,13 @@ importsOnly homes file = do
 
   ts <- liftIO $ getModificationTime file
   -- since 0f9ec9d1ff can't use Phase
+#if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
+  sess <- GHC.getSession
+  let unitid = GHC.ue_current_unit $ GHC.hsc_unit_env sess
+  pure $ (modname, GHC.Target (GHC.TargetFile file Nothing) False unitid (Just (trimmed, ts)))
+#else
   pure $ (modname, GHC.Target (GHC.TargetFile file Nothing) False (Just (trimmed, ts)))
+#endif
 
 parseModuleName' :: GHC.GhcMonad m => FilePath -> m (Maybe GHC.ModuleName)
 parseModuleName' file = do

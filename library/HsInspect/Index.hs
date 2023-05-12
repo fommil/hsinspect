@@ -11,6 +11,10 @@ module HsInspect.Index
   )
 where
 
+#if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
+import qualified GHC.Driver.Session as GHC
+#endif
+
 #if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
 import qualified GHC.Data.ShortText as GHC
 import qualified GHC.Driver.Env.Types as GHC
@@ -72,11 +76,16 @@ index :: GHC.GhcMonad m => m [PackageEntries]
 index = do
   dflags <- GHC.getSessionDynFlags
 
+#if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
+  let unarg as = fst <$> as
+#elif MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
+  let unarg = id
+#endif
 #if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
   sess <- GHC.getSession
   let unit_state = GHC.ue_units $ GHC.hsc_unit_env sess
       explicit = GHC.explicitUnits unit_state
-      pkgcfgs = maybeToList . GHC.lookupUnit unit_state =<< explicit
+      pkgcfgs = maybeToList . GHC.lookupUnit unit_state =<< unarg explicit
 #elif MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
   let unit_state = GHC.unitState dflags
       explicit = GHC.explicitUnits unit_state
@@ -123,9 +132,16 @@ getCompiledTargets dir = do
   provided <- getTargetModules
   his <- liftIO $ walkSuffix ".hi" dir
   modules <- catMaybes <$> traverse (flip withHi (pure . GHC.mi_module)) his
-  let toTarget m =
+#if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
+  sess <- GHC.getSession
+  let unitid = GHC.ue_current_unit $ GHC.hsc_unit_env sess
+      mkTarget m = GHC.Target (GHC.TargetModule m) True unitid Nothing
+#else
+  let mkTarget m = GHC.Target (GHC.TargetModule m) True Nothing
+#endif
+      toTarget m =
         if Set.member m provided
-          then Just $ GHC.Target (GHC.TargetModule m) True Nothing
+          then Just $ mkTarget m
           else Nothing
   pure $ mapMaybe (toTarget . GHC.moduleName) modules
 
@@ -134,13 +150,22 @@ getCompiledTargets dir = do
 withHi :: GHC.GhcMonad m => FilePath -> (GHC.ModIface -> (GHC.TcRnIf GHC.TcGblEnv GHC.TcLclEnv) a) -> m (Maybe a)
 withHi hi f = do
   env <- GHC.getSession
+#if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
+  dflags <- GHC.getSessionDynFlags
+  let profile = GHC.targetProfile dflags
+      name_cache = GHC.hsc_NC env
+  (_, res) <- liftIO $ do
+        iface <- GHC.readBinIface profile name_cache GHC.IgnoreHiWay GHC.QuietBinIFace hi
+        GHC.initTcInteractive env $ f iface
+#elif MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
   (_, res) <- liftIO . GHC.initTcInteractive env $ do
-#if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
-    iface <- GHC.readBinIface GHC.IgnoreHiWay GHC.QuietBinIFace hi
+        iface <- GHC.readBinIface GHC.IgnoreHiWay GHC.QuietBinIFace hi
+        f iface
 #else
-    iface <- GHC.readBinIface GHC.IgnoreHiWay GHC.QuietBinIFaceReading hi
+  (_, res) <- liftIO . GHC.initTcInteractive env $ do
+        iface <- GHC.readBinIface GHC.IgnoreHiWay GHC.QuietBinIFaceReading hi
+        f iface
 #endif
-    f iface
   pure res
 
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
