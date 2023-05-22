@@ -132,7 +132,11 @@ parseTypes env file = do
 #endif
               -- rhs is (cons, [(field name, field type, [typarams])] | [(parameter type, [typarams])])
               rhs = do
+#if MIN_VERSION_GLASGOW_HASKELL(9,5,0,0)
+                (GHC.L _ ddl) <- GHC.dd_cons ddn -- FIXME NewTypeCon vs DataTypeCons
+#else
                 (GHC.L _ ddl) <- GHC.dd_cons ddn
+#endif
                 case ddl of
                   -- http://hackage.haskell.org/package/ghc-8.8.3/docs/HsDecls.html#t:ConDecl
                   GHC.ConDeclH98 _ cons _ _ _ (GHC.RecCon (GHC.L _ fields)) _ -> [(showGhc cons, Left $ renderField <$> fields)]
