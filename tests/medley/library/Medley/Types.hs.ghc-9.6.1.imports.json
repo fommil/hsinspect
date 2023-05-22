@@ -1,0 +1,14 @@
+[
+    {
+        "full": "Prelude.Double",
+        "local": "Double"
+    },
+    {
+        "full": "Prelude.Int",
+        "local": "Int"
+    },
+    {
+        "full": "Prelude.String",
+        "local": "String"
+    }
+]

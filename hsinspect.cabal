@@ -7,7 +7,7 @@ license-file:  LICENSE
 author:        Tseen She
 maintainer:    Tseen She
 copyright:     2019 Tseen She
-tested-with:   GHC ^>=8.8.3 || ^>=8.10.7 || ^>=9.0.2 || ^>=9.2.7 || ^>=9.4.5
+tested-with:   GHC ^>=8.8.3 || ^>=8.10.7 || ^>=9.0.2 || ^>=9.2.7 || ^>=9.4.5 || ^>=9.6.1
 category:      Building
 description:   Inspect @.hs@ files using the ghc api.
 

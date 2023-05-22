@@ -103,9 +103,15 @@ parseTypes env file = do
                 GHC.Prefix -> showGhc tycon'
                 GHC.Infix -> "(" <> showGhc tycon' <> ")"
               tparams = renderTparam <$> tparams'
+#if MIN_VERSION_GLASGOW_HASKELL(9,5,0,0)
+              nt = case GHC.dd_cons ddn of
+                GHC.NewTypeCon _ -> True
+                GHC.DataTypeCons _ _ -> False
+#else
               nt = case GHC.dd_ND ddn of
                 GHC.NewType -> True
                 GHC.DataType -> False
+#endif
               renderTyParams :: GHC.LHsType GHC.GhcPs -> [Text]
               renderTyParams tpe = showGhc <$>
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
@@ -126,7 +132,13 @@ parseTypes env file = do
 #endif
               -- rhs is (cons, [(field name, field type, [typarams])] | [(parameter type, [typarams])])
               rhs = do
+#if MIN_VERSION_GLASGOW_HASKELL(9,5,0,0)
+                ddl <- case GHC.dd_cons ddn of
+                  GHC.NewTypeCon (GHC.unLoc -> a) -> [a]
+                  GHC.DataTypeCons _ (fmap GHC.unLoc -> as) -> as
+#else
                 (GHC.L _ ddl) <- GHC.dd_cons ddn
+#endif
                 case ddl of
                   -- http://hackage.haskell.org/package/ghc-8.8.3/docs/HsDecls.html#t:ConDecl
                   GHC.ConDeclH98 _ cons _ _ _ (GHC.RecCon (GHC.L _ fields)) _ -> [(showGhc cons, Left $ renderField <$> fields)]
@@ -188,7 +200,14 @@ parseTypes env file = do
 
       pure (types, sortOn (\(Comment _ s _) -> s) comments)
 
-#if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,5,0,0)
+    GHC.PFailed st ->
+      let errs = GHC.interppSP
+            . GHC.pprMsgEnvelopeBagWithLocDefault
+            . GHC.getMessages
+            $ GHC.getPsErrorMessages st
+      in throwIO . userError $ "unable to parse " <> file <> " due to " <> GHC.showSDocUnsafe errs
+#elif MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
     GHC.PFailed st ->
       let errs = GHC.interppSP
             . GHC.pprMsgEnvelopeBagWithLoc

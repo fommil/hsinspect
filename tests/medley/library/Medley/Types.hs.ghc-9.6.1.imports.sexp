@@ -1,0 +1,11 @@
+(((local . "Double")
+ (full . "Prelude.Double")
+)
+ ((local . "Int")
+ (full . "Prelude.Int")
+)
+ ((local . "String")
+ (full . "Prelude.String")
+)
+)
+
