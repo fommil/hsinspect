@@ -71,7 +71,9 @@ write = do
       writeGhcPath path = case ghcPath of
         Just p -> writeDifferent (path <> "/.ghc.path") p
         Nothing -> pure ()
-#if MIN_VERSION_GLASGOW_HASKELL(9,2,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,5,0,0)
+      enable = GHC.backendWritesFiles $ GHC.backend dflags
+#elif MIN_VERSION_GLASGOW_HASKELL(9,2,0,0)
       enable = GHC.backendProducesObject $ GHC.backend dflags
 #else
       enable = case GHC.hscTarget dflags of

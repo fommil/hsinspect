@@ -95,7 +95,9 @@ mkCppState sess file = do
   (dflags', _, _) <- GHC.parseDynamicFilePragma dflags pragmas
   pure $ (mkPState' dflags' full loc, pragmas)
 
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,5,0,0)
+parseHeader' :: GHC.GhcMonad m => FilePath -> m ([String], GHC.HsModule GHC.GhcPs)
+#elif MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 parseHeader' :: GHC.GhcMonad m => FilePath -> m ([String], GHC.HsModule)
 #else
 parseHeader' :: GHC.GhcMonad m => FilePath -> m ([String], GHC.HsModule GHC.GhcPs)

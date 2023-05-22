@@ -103,9 +103,15 @@ parseTypes env file = do
                 GHC.Prefix -> showGhc tycon'
                 GHC.Infix -> "(" <> showGhc tycon' <> ")"
               tparams = renderTparam <$> tparams'
+#if MIN_VERSION_GLASGOW_HASKELL(9,5,0,0)
+              nt = case GHC.dd_cons ddn of
+                GHC.NewTypeCon _ -> True
+                GHC.DataTypeCons _ _ -> False
+#else
               nt = case GHC.dd_ND ddn of
                 GHC.NewType -> True
                 GHC.DataType -> False
+#endif
               renderTyParams :: GHC.LHsType GHC.GhcPs -> [Text]
               renderTyParams tpe = showGhc <$>
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
