@@ -1,5 +1,10 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE KindSignatures #-}
 module Medley.Types where
+
+#if MIN_VERSION_GLASGOW_HASKELL(9,5,0,0)
+import Data.Kind (Type)
+#endif
 
 import Prelude (Double, Int, String)
 
@@ -19,8 +24,11 @@ newtype Coord = C { foo :: Int }
 data Things a b = T a b Double
 
 -- higher kinded polymorphic record
+#if MIN_VERSION_GLASGOW_HASKELL(9,5,0,0)
+data Logger (m :: Type -> Type) = Logger { log :: String -> m () }
+#else
 data Logger (m :: * -> *) = Logger { log :: String -> m () }
-
+#endif
 -- polymorphic sum
 data Action a = Admin [a] String | User a String
 

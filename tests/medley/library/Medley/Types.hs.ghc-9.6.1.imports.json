@@ -10,5 +10,9 @@
     {
         "full": "Prelude.String",
         "local": "String"
+    },
+    {
+        "full": "Data.Kind.Type",
+        "local": "Type"
     }
 ]

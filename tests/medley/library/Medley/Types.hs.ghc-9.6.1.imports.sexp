@@ -7,5 +7,8 @@
  ((local . "String")
  (full . "Prelude.String")
 )
+ ((local . "Type")
+ (full . "Data.Kind.Type")
+)
 )
 

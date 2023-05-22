@@ -211,111 +211,122 @@
     [
         {
             "end": {
-                "col": 32,
+                "col": 21,
                 "line": 1
             },
             "start": {
                 "col": 1,
                 "line": 1
+            },
+            "text": "{-# LANGUAGE CPP #-}"
+        },
+        {
+            "end": {
+                "col": 32,
+                "line": 2
+            },
+            "start": {
+                "col": 1,
+                "line": 2
             },
             "text": "{-# LANGUAGE KindSignatures #-}"
         },
         {
             "end": {
                 "col": 11,
-                "line": 6
+                "line": 11
             },
             "start": {
                 "col": 1,
-                "line": 6
+                "line": 11
             },
             "text": "-- product"
         },
         {
             "end": {
                 "col": 10,
-                "line": 9
+                "line": 14
             },
             "start": {
                 "col": 1,
-                "line": 9
+                "line": 14
             },
             "text": "-- record"
         },
         {
             "end": {
                 "col": 7,
-                "line": 12
+                "line": 17
             },
             "start": {
                 "col": 1,
-                "line": 12
+                "line": 17
             },
             "text": "-- sum"
         },
         {
             "end": {
                 "col": 11,
-                "line": 15
+                "line": 20
             },
             "start": {
                 "col": 1,
-                "line": 15
+                "line": 20
             },
             "text": "-- newtype"
         },
         {
             "end": {
                 "col": 23,
-                "line": 18
+                "line": 23
             },
             "start": {
                 "col": 1,
-                "line": 18
+                "line": 23
             },
             "text": "-- polymorphic product"
         },
         {
             "end": {
                 "col": 36,
-                "line": 21
+                "line": 26
             },
             "start": {
                 "col": 1,
-                "line": 21
+                "line": 26
             },
             "text": "-- higher kinded polymorphic record"
         },
         {
             "end": {
                 "col": 19,
-                "line": 24
+                "line": 32
             },
             "start": {
                 "col": 1,
-                "line": 24
+                "line": 32
             },
             "text": "-- polymorphic sum"
         },
         {
             "end": {
                 "col": 17,
-                "line": 27
+                "line": 35
             },
             "start": {
                 "col": 1,
-                "line": 27
+                "line": 35
             },
             "text": "-- infix product"
         },
         {
             "end": {
                 "col": 13,
-                "line": 30
+                "line": 38
             },
             "start": {
                 "col": 1,
-                "line": 30
+                "line": 38
             },
             "text": "-- infix sum"
         }
