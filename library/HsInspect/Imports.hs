@@ -11,13 +11,13 @@ where
 
 #if MIN_VERSION_GLASGOW_HASKELL(9,1,0,0)
 import qualified GHC.Types.Target as GHC
-import qualified GHC.Types.Name.Reader as GHC
 #endif
 
 #if MIN_VERSION_GLASGOW_HASKELL(9,3,0,0)
 import qualified GHC.Driver.Env.Types as GHC
 import qualified GHC.Unit.Env as GHC
 import qualified GHC.Data.Bag as GHC
+import qualified GHC.Types.Name.Reader as GHC
 #elif MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 import qualified GHC.Types.Name.Reader as GHC
 #else
