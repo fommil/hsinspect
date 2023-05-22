@@ -27,7 +27,7 @@ common deps
 library
   import:          deps
   hs-source-dirs:  library
-  build-depends:   contravariant ==1.5.2
+  build-depends:   contravariant ==1.5.5
 
   -- cabal-fmt: expand library
   exposed-modules:

@@ -66074,7 +66074,7 @@
                 "module": "Data.Functor.Contravariant.Generic"
             }
         ],
-        "srcid": "contravariant-1.5.2"
+        "srcid": "contravariant-1.5.5"
     },
     {
         "haddocks": [
